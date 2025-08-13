@@ -1,0 +1,3251 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>今天打卡了嘛</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <style>
+    body { font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif; margin:0; background:#fff; color:#222;}
+    #mainApp { min-height:100vh; background:#fff; padding-bottom:56px; }
+
+:root {
+  /* —— Day 主题（默认）—— */
+  --A-card-back: #f4b3c2;         /* A卡背/装饰主色（可选） */
+  --B-card-back: #e3eb98;
+  --P-card-back: #5cb3cc;
+
+  --A-cal-bg: rgba(244,179,194,0.27);
+  --B-cal-bg: rgba(227,235,152,0.27);
+  --P-cal-bg: rgba(92,179,204,0.16);
+
+  --A-dot: rgb(244,179,194);
+  --B-dot: rgb(227,235,152);
+  --P-dot: rgb(92,179,204);
+
+  --app-bg: #fff;
+  --app-fg: #222;
+  --panel-bg: #fafbfc;
+  --panel-border: #eee;
+}
+
+[data-theme="night"]{
+  /* —— Night 主题（默认值先给出一套柔和夜色，可在UI里改）—— */
+  --A-card-back: #c98a98;
+  --B-card-back: #aeb86e;
+  --P-card-back: #4b8fa3;
+
+  --A-cal-bg: rgba(201,138,152,0.35);
+  --B-cal-bg: rgba(174,184,110,0.35);
+  --P-cal-bg: rgba(75,143,163,0.25);
+
+  --A-dot: #c98a98;
+  --B-dot: #aeb86e;
+  --P-dot: #4b8fa3;
+
+  --app-bg: #141414;
+  --app-fg: #eaeaea;
+  --panel-bg: #1b1b1b;
+  --panel-border: #2a2a2a;
+}
+
+/* 应用全局底色/前景 */
+body, #mainApp { background: var(--app-bg); color: var(--app-fg); }
+
+/* 统计面板/一般卡片底色跟随主题 */
+.stat-panel { background: var(--panel-bg); border-color: var(--panel-border); }
+.pool-block{ background: var(--panel-bg); }
+
+    /* TabBar */
+    .tabbar { position:fixed; bottom:0; left:0; right:0; height:56px; background:#faf7fa; border-top:1px solid #eee; display:flex; z-index:30;}
+    .tab-btn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:15px; color:#aaa; cursor:pointer; font-weight:500;}
+    .tab-btn.active { color:#888;}
+    .tab-btn .icon { font-size:20px; margin-bottom:2px;}
+
+    /* 内容区 */
+    .view-page { display:none; }
+    .view-page.active { display:block; }
+
+    /* 月历（主要更新：格子变正方，去红边） */
+    .calendar-header { 
+  display:flex; 
+  align-items:center; 
+  justify-content:center; /* 改为 center */
+  margin:16px 10px 4px 10px;
+  position: relative; /* ✅ 新增：为绝对定位的子元素提供基准 */
+  height: 30px; /* ✅ 新增：给一个固定的高度 */
+}
+
+/* --- 新增下面这些样式 --- */
+.calendar-header-left {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.calendar-header-right {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex; /* 让两个箭头按钮并排 */
+}
+.calendar-title { 
+  font-size:1.3em; 
+  font-weight:600;
+  /* margin: 0 auto;  可选，justify-content:center 已经能处理 */
+}
+    .calendar-title { font-size:1.3em; font-weight:600;}
+    .calendar-switch {font-size:15px; color:#888; background:none; border:none; padding:4px 7px; border-radius:6px; cursor:pointer;}
+    .calendar-switch.active { color:#FF6600;}
+    .calendar-table { width:100%; border-spacing:6px 10px;}
+    .calendar-table th { font-weight:normal; color:#444; font-size:14px; padding:2px 0;}
+    .calendar-day {
+  width: 13vw;
+  height: 13vw;
+  min-width: 28px;
+  min-height: 28px;
+  max-width: 44px;
+  max-height: 44px;
+  /* 其他不变 */
+  background: #fff;
+  border-radius: 32%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  text-align:left;
+  vertical-align:top;
+  position:relative;
+  font-size:14px;
+  cursor:pointer;
+  transition: box-shadow .10s;
+  border: none;
+  /* 移除了today红边等所有border */
+}
+    /* 不再区分today红色边 */
+    /* .calendar-day.today { border:1.6px solid #ff6600;} */
+    .calendar-day .day-num {
+  font-size: 10px;
+  position: absolute;
+  top: 13%;
+  left: 13%;
+  font-weight: 600;
+  color: #555;
+}
+.calendar-day .day-emoji {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  transform: translate(-50%, -50%);
+  font-size: 1.12em;
+  pointer-events: none;
+}
+.calendar-day .day-score {
+  position: absolute;
+  bottom: 8%;
+  right: 11%;
+  font-size: 10px;
+  color: #FF3333;
+  font-weight: bold;
+}
+    .calendar-day.disable {background:#f7f7f7; color:#bbb;}
+    .calendar-day.A { background: rgba(244,179,194,0.27);}
+    .calendar-day.B { background: rgba(227,235,152,0.27);}
+    .calendar-day.P { background: rgba(92,179,204,0.16);}
+
+    /* 年历 */
+    .year-header { display:flex; align-items:center; justify-content:space-between; margin:16px 10px 6px 10px;}
+    .year-title { font-size:1.2em; font-weight:600;}
+    .year-calendar { display: flex; flex-wrap: wrap; gap: 8px 0; justify-content: flex-start; padding: 0 2px; }
+    .month-block { flex: 0 0 33.3%; padding: 2px 0 2px 0; box-sizing: border-box; cursor:pointer;}
+    .month-title { text-align:center; font-weight:600; font-size:16px; margin-bottom:1px; color:#222;}
+    .days-table { border-spacing: 1px; width:100%; table-layout:fixed;}
+    .day-dot { display:inline-block; width:6px; height:6px; border-radius:50%; border:1.2px solid #ddd; margin:0 1px; background:#fff;}
+    .day-dot.filled.pink  { background: var(--A-dot); border-color: var(--A-dot); }
+.day-dot.filled.green { background: var(--B-dot); border-color: var(--B-dot); }
+.day-dot.filled.blue  { background: var(--P-dot); border-color: var(--P-dot); }
+    .day-dot.empty { background: #fff; border-color: #ddd;}
+    .days-table td { padding: 2px; height:14px; text-align:center;}
+    .year-nav-btn {font-size:19px; color:#888; border:none; background:none; padding:4px 10px; cursor:pointer; border-radius:6px;}
+    .year-nav-btn:active {color:#ff6600;}
+
+    /* 打卡页 */
+    .punch-main {
+  padding: 18px 1vw 1vw 6vw;   /* 左右1vw，大约屏幕宽度1%，自适应留白 */
+  max-width: 540px;             /* 居中宽度限制，避免两边太大 */
+  margin: 0 auto;
+}
+
+    /* emoji横滑优化 */
+	 .emoji-title{ margin-top:6px; } /* 顶部留白，不顶到屏幕边 */
+    .emoji-title {font-size: 1.1em; font-weight: bold; margin-bottom: 8px;}
+    .emoji-scroll-row {
+      display: flex; flex-direction: row; gap: 10px;
+      overflow-x: auto; /* 横向滚动 */
+      scrollbar-width: none; /* 隐藏滚动条，兼容部分浏览器 */
+      -ms-overflow-style: none;
+      margin-bottom: 28px; margin-top: 4px;
+      padding-bottom: 4px;
+    }
+    .emoji-scroll-row::-webkit-scrollbar { display: none; }
+    .emoji-btn { font-size: 26px; width: 40px; height: 40px; border-radius: 8px;
+      text-align: center; cursor: pointer; user-select:none;
+      transition: background 0.16s, box-shadow 0.13s;
+      box-shadow: none; background: none; border: none; outline: none;
+      flex: 0 0 auto; /* 不自动换行 */
+    }
+    .emoji-btn.selected { background: #f3f3f3; box-shadow: 0 0 0 2px #ccc inset; }
+	 .emoji-btn.add {
+  background: #f7f7f7 !important;
+  color: #ff7700 !important;
+  border: 1.2px dashed #ffa24c !important;
+  font-size: 24px !important;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emoji-btn.add:active {
+  background: #ffe9ce !important;
+}
+	 .emoji-row {
+  margin-bottom: 24px !important;
+}
+/* 晃动动画 */
+@keyframes shake {
+  0% { transform: rotate(-7deg);}
+  25% { transform: rotate(7deg);}
+  50% { transform: rotate(-7deg);}
+  75% { transform: rotate(7deg);}
+  100% { transform: rotate(-7deg);}
+}
+.emoji-btn.shake {
+  animation: shake 0.4s infinite linear;
+  position: relative;
+}
+
+/* 删除按钮 */
+.emoji-delete-btn {
+  display: none;
+  position: absolute;
+  top: -8px; right: -8px;
+  width: 18px; height: 18px;
+  background: #fff;
+  border: 1px solid #ff3333;
+  color: #ff3333;
+  border-radius: 50%;
+  font-size: 14px;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+  cursor: pointer;
+}
+.emoji-btn.shake .emoji-delete-btn {
+  display: flex;
+}
+.emoji-btn {
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none !important;
+}
+.emoji-btn:focus { outline: none !important; }
+
+    .check-title { display: flex; align-items: center; justify-content: space-between;
+      font-size:1.13em; font-weight: bold; margin-bottom:10px; }
+    .score-bar { color: #FF3333; font-size: 1.28em; font-weight: bold;}
+    .check-list { display: flex; flex-wrap: wrap; gap: 6px 4px; margin-bottom: 18px;}
+    .check-item { position: relative; }
+    .check-btn {
+      min-width: 83px; height: 38px; padding: 0 13px;
+      border: 1.2px solid #dddddd; background: #fff;
+      color: #888; font-size: 0.97em; border-radius: 11px;
+      cursor: pointer; font-weight: 500; transition: all .14s;
+      position:relative; box-shadow:none; outline:none; margin-bottom: 2px;
+    }
+    .check-btn.selected {
+      color: #ff7700; border: 1.8px solid #ff9900;
+      background: #fff; font-weight: bold;
+    }
+    .plus-anim {
+      color: #FF3333;
+      position: absolute; right: 12px; top: -13px;
+      font-size: 1.08em; font-weight: 700; opacity: 1;
+      animation: floatUp 0.82s cubic-bezier(.37,1.22,.42,.93) forwards;
+      pointer-events:none; z-index:99;
+      text-shadow: 0 0 1px #fff;
+    }
+    @keyframes floatUp {
+      0% { opacity:1; transform:translateY(0) scale(1);}
+      60% { opacity:1; transform:translateY(-16px) scale(1.11);}
+      100% { opacity:0; transform:translateY(-35px) scale(0.78);}
+    }
+    .note-title { font-size:1.1em; font-weight:bold; margin:18px 0 6px 2px;}
+    .note-textarea {
+      width: 96%; max-width: 510px; min-width:160px;
+      min-height: 62px; font-size: 1em; border-radius: 7px;
+      border:1.2px solid #ddd; padding: 10px 10px;
+      margin-bottom: 12px; box-sizing: border-box;
+      resize: vertical; outline: none;
+    }
+    .submit-btn{
+  display: block;
+  margin: 12px auto 0;       /* 居中 */
+  font-size: 1em;
+  color: #fff;
+  background: #ff6600;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 26px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background .16s;
+}
+	 .submit-btn:active{ background:#ff2600; }
+	 /* --- 新增这个样式，用于打卡页的分区卡片 --- */
+.punch-section-card {
+  background-color: var(--panel-bg); /* 使用CSS变量，这样夜间模式也能自动变色 */
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px; /* 卡片之间的垂直间距 */
+  border: 1px solid var(--panel-border); /* 同样使用变量，和主题保持一致 */
+}
+    .submit-tip{
+  font-size: 0.96em;
+  color: #FF3333;
+  font-weight: bold;
+  text-align: center;         /* 居中 */
+  margin-top: 8px;            /* 不再用 margin-left */
+  animation: tipFade 2.4s;
+}
+.submit-row{ margin-top: 6px; }
+    @keyframes tipFade {
+      0%{opacity:0;} 18%{opacity:1;} 92%{opacity:1;} 100%{opacity:0;}
+    }
+
+    /* 奖惩抽卡池（略） */
+    .reward-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; 
+  padding-top: 15vh;
+  min-height: 85vh; /* 保持视口高度，确保有足够空间 */
+  box-sizing: border-box; 
+  background: var(--app-bg);
+}
+
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 28px;
+  min-height: 430px; /* 调大最小高度以容纳大卡片 */
+  align-items: center;
+}
+
+/* 替换这个样式 */
+.card-back, .card-front-img {
+  width: 300px;  /* 120px * 2.5 */
+  height: 425px; /* 170px * 2.5 */
+  border-radius: 24px; /* 圆角也可以稍微大一点，更协调 */
+  background: #eee;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08); /* 阴影也加强一点 */
+  transition: transform .7s cubic-bezier(.66,-0.03,.3,1.18), opacity .5s, box-shadow .2s;
+  cursor: default; /* 因为是靠按钮抽，卡片本身不可点 */
+  position: relative;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  background-size: cover;
+  background-position: center;
+}
+    .card-back.hide { opacity: 0; pointer-events: none; }
+    .card-back.flipped, .card-front-img.flipped {
+      transform: rotateY(180deg) scale(1.1);
+      z-index: 11;
+      box-shadow: 0 8px 32px #bba7f9cc;
+    }
+    .result-panel {
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  width: 100%;
+  margin-top: 14px; 
+  gap: 10px;
+
+  /* --- 关键新增！ --- */
+  position: relative; /* 创建一个新的定位上下文 */
+  z-index: 10;      /* 给一个比弹幕特效层更高的层级 */
+}
+    .card-front-img {
+      width: 160px; height: 220px; min-width: 160px; border-radius: 18px;
+      box-shadow: 0 6px 32px #bba7f9cc;
+      background-size: cover; background-position: center;
+      margin-bottom: 0;
+      margin-top: 0;
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 5em;
+    }
+    .desc-area {
+      width: 95vw; max-width: 380px; margin: 0 auto;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      padding-top: 10px;
+    }
+    .reward-title {
+      font-weight: bold; font-size: 1.2em; margin-bottom: 10px; color: #ea447a;
+      letter-spacing: 2px; margin-top: 16px;
+    }
+    .reward-content {
+      font-size: 1em; color: #222; margin-bottom: 12px;
+    }
+    .reward-tips {
+      font-size: 1.13em; color: #4a90e2; margin-top: 14px;
+      border-top: 1px dashed #f0bada; padding-top: 10px;
+      font-style: italic;
+      margin-bottom: 6px;
+    }
+/* --- 新增：抽卡结果弹窗样式 --- */
+.reward-popup-overlay {
+  position: fixed; /* 固定在屏幕上 */
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  // background: rgba(0, 0, 0, 0.55); /* 这是半透明的背景遮罩，让彩色卡片更突出 */
+  display: none; /* 默认隐藏 */
+  align-items: center;
+  justify-content: center;
+  z-index: 1000; /* 确保在最上层 */
+}
+    .draw-btn {
+  font-size: 1.8em; /* 放大图标，让它成为视觉焦点 */
+  background: transparent;
+  color: #aaa;
+  
+  /* --- 关键：定义一个正圆 --- */
+  width: 72px;
+  height: 72px;
+  border-radius: 50%; /* 变成完美的圆形 */
+  padding: 0;         /* 不需要内边距了 */
+  line-height: 72px;  /* 垂直居中图标 */
+  text-align: center; /* 水平居中图标 */
+  
+  border: 2px solid #eee;
+  margin: 18px 0 10px;
+  box-shadow: none;
+  cursor: pointer;
+  transition: 0.2s;
+  
+  /* 为了防止某些系统图标有自带的字体，我们这里不强制加粗 */
+  font-weight: normal; 
+  /* 也去掉字母间距 */
+  letter-spacing: normal;
+}
+
+.draw-btn:active {
+  background: #f5f5f5;
+  border-color: #ddd;
+  transform: scale(0.95); /* 按下时增加一个缩小动画，手感更好！*/
+}
+    @media (max-width: 700px) {
+      .desc-area { max-width: 99vw; }
+      .card-front-img { width: 95vw; min-width: 0; height: 34vw; font-size: 4em; }
+    }
+    @media (max-width:700px){
+      .punch-main{padding:12px 3vw;}
+      .calendar-header,.year-header{margin-left:2vw; margin-right:2vw;}
+      .calendar-day{ width: 28vw; min-width: 30px; aspect-ratio: 1/1;}
+    }
+    @media (max-width:430px){ .calendar-day{width:24vw; min-width: 26px; aspect-ratio: 1/1;} .month-title{font-size:13px;} }
+    @media (max-width:370px){ .calendar-day{width:21vw; min-width: 18px; aspect-ratio: 1/1;} }
+td.calendar-day {
+  width: 13vw !important;
+  height: 13vw !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 44px !important;
+  max-height: 44px !important;
+  background: #fff !important;
+  border-radius: 32% !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03) !important;
+  text-align: left !important;
+  vertical-align: top !important;
+  position: relative !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  transition: box-shadow .10s !important;
+  border: none !important;
+  overflow: visible !important;
+}
+
+td.calendar-day .day-num {
+  font-size: 10px !important;
+  position: absolute !important;
+  top: 13% !important;
+  left: 13% !important;
+  font-weight: 600 !important;
+  color: #555 !important;
+}
+
+td.calendar-day .day-emoji {
+  position: absolute !important;
+  left: 50% !important;
+  top: 52% !important;
+  transform: translate(-50%, -50%) !important;
+  font-size: 1.12em !important;
+  pointer-events: none !important;
+}
+
+td.calendar-day .day-score {
+  position: absolute !important;
+  bottom: 8% !important;
+  right: 11% !important;
+  font-size: 10px !important;
+  color: #FF3333 !important;
+  font-weight: bold !important;
+}
+/* --- 日历ABC池背景 --- */
+/* 原来是 td.calendar-day.A { background: rgba(...); } */
+td.calendar-day.A { background: var(--A-cal-bg) !important;}
+td.calendar-day.B { background: var(--B-cal-bg) !important;}
+td.calendar-day.P { background: var(--P-cal-bg) !important;}
+td.calendar-day.disable {background:#f7f7f7 !important; color:#bbb !important;}
+
+/* --- 打卡页左右留白 --- */
+.punch-main, .view-page#tab-punch > div, .view-page#tab-punch {
+  padding-left: 1vw !important;
+  padding-right: 1vw !important;
+  box-sizing: border-box !important;
+}
+
+.item-settings-panel {
+  background: #fafafa;
+  border-radius: 11px;
+  padding: 16px 12px 18px 12px;
+  margin: 16px 0;
+}
+.me-section-title {
+  font-size: 20px;
+  font-weight: 400;
+  text-align: left;
+  padding-left: 10px;
+  margin-bottom: 14px;
+}
+.item-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px;
+  border-radius: 7px;
+  transition: background 0.18s;
+}
+.item-row.selected, .item-row:focus-within {
+  background: #f2f3f7;
+}
+.item-row input[type=checkbox] {
+  margin-right: 4px;
+}
+.item-name {
+  display: inline-block;
+  min-width: 5.5em;
+  max-width: 5.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 2px;
+  font-weight: 400;
+  border: none;
+  background: transparent;
+  flex-shrink: 0;
+}
+.item-score, .item-type, .item-short {
+  padding: 2px 2px;
+  text-align: left;
+  font-weight: 400;
+  border: none;
+  background: transparent;
+  min-width: 60px; /* 这里可以调大，保证最长的项目名也不挤 */
+  flex-shrink: 0;
+}
+.item-score, .item-type, .item-short {
+  width: 44px;
+  color: #555;
+}
+.add-btn {
+  background: #ffe7d4;
+  color: #fa7d00;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 20px;
+  font-size: 1em;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 2px;
+  margin-left: 6px;
+  transition: background 0.18s;
+}
+.del-btn {
+  background: none;
+  color: #e73b3b;
+  border: none;
+  font-size: 17px;
+  cursor: pointer;
+  margin-left: 2px;
+  opacity: 0.58;
+}
+.del-btn:active {
+  color: #c00;
+  opacity: 1;
+}
+/* 隐藏原生checkbox */
+.item-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  border: 2px solid #999; /* 灰色边框 */
+  border-radius: 6px;
+  background: #fff;
+  vertical-align: middle;
+  cursor: pointer;
+  position: relative;
+}
+
+/* 选中时的灰色填充 */
+.item-row input[type="checkbox"]:checked {
+  background: #999;
+  border-color: #dddddd;
+}
+
+/* 选中时画√ */
+.item-row input[type="checkbox"]:checked::after {
+  content: '';
+  display: block;
+  width: 7px;
+  height: 13px;
+  border: solid #fff;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+  position: absolute;
+  left: 6px;
+  top: 2px;
+}
+.bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  /* 其他你要的样式 */
+}
+
+.total-score {
+  font-size: 15px;
+  color: #fa7d00;
+  font-weight: 600;
+  padding-left: 8px;
+}
+  /* 新窗开始 */
+/* ===== 项目设置部分 ===== */
+.setting-panel-header {
+  font-size: 28px;         /* 放大 */
+  font-weight: 400;
+  text-align: left !important; /* 强制左对齐 */
+  padding-left: 20px;      /* 左侧留点距离更美观 */
+  color: #444;
+  transition: color .2s;
+}
+.setting-panel.active .setting-panel-header {
+  color: #ff4d4f;
+}
+#item-list {
+  width: 100%;
+}
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+  font-size: 17px;
+}
+.item-checkbox {
+  margin-right: 4px;
+}
+.item-name, .item-score, .item-type, .item-short {
+  border: none;
+  background: transparent;
+  border-radius: 2px;
+  padding: 3px 5px;
+  font-size: 17px;
+  width: 60px;
+  text-align: left;
+}
+.item-name { width: 70px; font-weight: 600; font-size: 16px;
+  color: #222;}
+.item-score { width: 32px; text-align: center; }
+.item-type, .item-short { width: 45px; color: #666; }
+.del-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #888;
+  margin-left: 2px;
+}
+.row-divider {
+  height: 1px;
+  background: #ececec;
+  margin: 2px 0 2px 0;
+}
+
+/* ---- 奖池设置区块 ---- */
+/* —— 奖项为“备忘录风” —— */
+/* ===== 奖池列表：简洁文本风 ===== */
+/* 外层容器保持你现在的卡片感 */
+.pool-block{
+  background:#F7F7F7;
+  border-radius:12px;
+  padding:12px;
+}
+
+/* 每条奖项一行块 */
+.pool-card-row{
+  margin:0;
+  padding:0;
+  font-size:17px;
+}
+
+/* 标题行：左标题，右侧垃圾桶 */
+.card-title-row{
+  display:flex;
+  align-items:baseline;       /* 标题与 🗑 同一基线 */
+  justify-content:space-between;
+  padding:14px 0 6px;
+}
+
+/* 可编辑标题：黑、加粗、无边框、无底色 */
+.ed-title{
+  font-size:18px;
+  font-weight:700;
+  color:#222;
+  line-height:1.4;
+  margin-right:8px;
+  padding:0;
+  background:transparent !important;
+  border:none !important;
+  box-shadow:none !important;
+  outline:none;
+}
+
+/* 可编辑正文两行：灰色、左对齐、无边框 */
+.ed-line{
+  font-size:16px;
+  color:#555;
+  line-height:1.75;
+  margin:6px 0 0;
+  padding:0;
+  background:transparent !important;
+  border:none !important;
+  box-shadow:none !important;
+  outline:none;
+  text-align:left;
+}
+
+/* 占位提示（如果你有需要） */
+.ed-line[contenteditable="true"]:empty:before{
+  content: attr(placeholder);
+  color:#aaa;
+}
+
+/* 分割线 */
+.row-divider{
+  height:1px;
+  background:#E6E6E6;
+  margin:12px 0;
+  border:0;
+}
+
+/* 删除按钮低调一点 */
+.del-btn{
+  background:transparent;
+  border:0;
+  font-size:18px;
+  opacity:.65;
+}
+.del-btn:active{ opacity:.9; }
+
+/* 顶部 A/B/P 标签样式你已写好，略 */
+
+/* 覆盖掉旧的“小白框 input”外观（如果还在） */
+.item-name, .item-desc, .item-tips {
+  border:none !important;
+  background:transparent !important;
+  padding:0 !important;
+  height:auto !important;
+  min-height:0 !important;
+  box-shadow:none !important;
+  width:100% !important;
+}
+/* 顶部 A/B/P 分段切换 */
+.pool-tabs{
+  display:flex; gap:12px; padding:8px 4px 12px;
+}
+.pool-tab{
+  min-width:40px; padding:6px 10px;
+  border:none; border-radius:10px;
+  background:#F0F0F0; color:#666; font-weight:600;
+}
+/* 阈值行整体依然紧凑 */
+#poolPanel .threshold-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px 12px;
+  align-items:center;
+}
+
+/* 小组内部不拆 */
+#poolPanel .threshold-row .pair{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  white-space:nowrap;
+}
+
+/* 文字别占固定宽 */
+#poolPanel .threshold-row .item-name{
+  min-width:auto;
+  max-width:none;
+  margin:0;
+  padding:0;
+}
+
+/* —— 关键：给数字输入一个明确外观（覆盖你原来“透明无边框”的设置） —— */
+#poolPanel .threshold-row .item-score{
+  width:56px;                 /* 需要更紧可以改 50/48 */
+  height:28px;
+  line-height:28px;
+  padding:0 6px;
+  border:1px solid var(--panel-border) !important;
+  border-radius:8px;
+  background:#fff !important;
+  color:#333 !important;
+  text-align:center;
+  box-sizing:border-box;
+  -moz-appearance:textfield;   /* 去掉 Firefox 的数字箭头 */
+}
+/* 去掉 WebKit 的数字箭头 */
+#poolPanel .threshold-row .item-score::-webkit-outer-spin-button,
+#poolPanel .threshold-row .item-score::-webkit-inner-spin-button{
+  -webkit-appearance:none; margin:0;
+}
+.pool-tab.active{
+  background:#e74c3c10; /* 轻微红系高亮底 */
+  color:#e74c3c;        /* 你的选中红 */
+  box-shadow:0 1px 0 rgba(0,0,0,.05) inset;
+}
+
+/* 主体卡片容器（保留你原来的干净风格） */
+.pool-block{ background:#F7F7F7; border-radius:12px; padding:12px; }
+.pool-title{ font-weight:700; font-size:18px; color:#888; margin:4px 0 8px; }
+
+/* 奖项行（保持你现在的样子；如果之前有 .pool-card-row/.row-divider 就继续沿用） */
+
+/* —— 色彩设置总容器（单卡包裹全部） —— */
+.color-wrap{
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+/* —— 每行：左名字，右边色盘+色号 —— */
+.color-row{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:10px 12px; border-radius:10px;
+}
+.color-row + .color-row{ margin-top:6px; }
+.color-row .label{ font-size:15px; color: var(--app-fg); }
+.color-row .inputs{ display:flex; align-items:center; gap:10px; }
+.color-row input[type=color]{ width:28px; height:28px; border:none; padding:0; background:transparent; }
+.color-row input[type=text]{
+  width:180px; max-width:260px;
+  border:1px solid var(--panel-border); border-radius:8px;
+  padding:6px 8px; background:#fff; color:#333; outline:none;
+}
+
+/* —— 打卡页选中态用变量驱动 —— */
+:root{
+  --check-selected-border: #ff9900;
+  --check-selected-bg: #ffffff;
+  --check-selected-fg: #ff7700;
+}
+.check-btn.selected{
+  color: var(--check-selected-fg);
+  border: 1.8px solid var(--check-selected-border);
+  background: var(--check-selected-bg);
+  font-weight: bold;
+}
+/* 隐藏池标题行 */
+.pool-title{ display:none; }
+/* 阈值行布局（紧凑且不换错行） */
+#poolPanel .threshold-row{
+  display:flex;
+  align-items:center;
+  gap: 10px 16px;     /* 间距；想更紧可调成 8px 12px */
+  flex-wrap:wrap;     /* 小屏自动换行 */
+}
+
+/* 文案样式 */
+#poolPanel .threshold-row .th-label{
+  font-size: 15px;
+  color:#333;
+  white-space:nowrap;
+  margin:0;
+  padding:0;
+}
+
+/* 数字输入外观（独立于全局 input 样式） */
+#poolPanel .threshold-row .th-input{
+  width:56px;         /* 太挤改 50 */
+  height:28px;
+  padding:0 6px;
+  border:1px solid var(--panel-border);
+  border-radius:8px;
+  background:#fff;
+  color:#333;
+  text-align:center;
+  box-sizing:border-box;
+  outline:none;
+  -moz-appearance:textfield;
+}
+#poolPanel .threshold-row .th-input::-webkit-outer-spin-button,
+#poolPanel .threshold-row .th-input::-webkit-inner-spin-button{
+  -webkit-appearance:none; margin:0;
+}
+
+/* 防止旧的全局 .item-name/.item-score 影响这一行（保险） */
+#poolPanel .threshold-row .item-name,
+#poolPanel .threshold-row .item-score{
+  all: unset;         /* 清空旧样式，避免误伤 */
+}
+/* 只影响“我”页 */
+#tab-me .add-btn,
+#tab-me .add-btn-plain,
+#tab-me .again-btn,
+#tab-me .draw-btn,
+#tab-me .submit-btn {
+  background: #fff !important;   /* 白底 */
+  color: #4a90e2 !important;            /* 白字（想灰底蓝字就改成 #4a90e2） */
+  border: none !important;
+  box-shadow: none !important;
+}
+#tab-me .add-btn:active,
+#tab-me .add-btn-plain:active,
+#tab-me .again-btn:active,
+#tab-me .draw-btn:active,
+#tab-me .submit-btn:active {
+  background: #4b5563 !important;
+}
+#tab-me .total-score { color:#4a90e2 !important; }
+#tab-me .pool-tab.active{
+  background:#6b7280 !important;
+  color:#fff !important;
+  box-shadow:none !important;
+}
+/* —— 导入导出两列对齐 —— */
+/* 两列行：左伸缩，右贴边 */
+.row-2col { display:flex; align-items:center; }
+.row-2col .flex { flex:1 1 auto; min-width:0; }  /* 关键：允许缩小 */
+.nowrap { white-space: nowrap; }
+.right { margin-left: auto; }                    /* 关键：按钮贴右 */
+/* —— 中央圆角卡片 —— */
+.reward-frame{
+  width: min(85vw, 450px);
+  margin: 0 auto 30px; 
+  border-radius: 20px;
+  padding: 20px 24px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,.1);
+  border: 1px solid var(--panel-border);
+  position: relative; /* 确保 z-index 生效 */
+  z-index: 10;      /* 让卡片在弹幕之上 */
+}
+.reward-frame .rf-title{
+  font-weight: 700;
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+.reward-frame .rf-content{
+  white-space: pre-wrap;
+  line-height: 1.75;
+  color: #333;
+  font-size: 16px;
+}
+
+/* —— 跟随池子配色：用你已有变量 —— */
+.reward-frame.pool-A{ background: var(--A-cal-bg); }
+.reward-frame.pool-B{ background: var(--B-cal-bg); }
+.reward-frame.pool-P{ background: var(--P-cal-bg); }
+
+/* —— 效果层（弹幕/下雨）—— */
+.fx-layer{
+  position: fixed; /* 改为fixed，相对于屏幕定位 */
+  top: 0;
+  left: 0;
+  width: 100vw;      /* 宽度占满整个屏幕 */
+  height: 100vh;     /* 高度占满整个屏幕 */
+  overflow: hidden;
+  pointer-events: none; /* 允许点击穿透，非常重要！ */
+  z-index: 5;           /* 层级要低于粉色卡片(z-index:10)，高于页面背景 */
+}
+
+/* —— 小雨滴（样式不变，动画变了） —— */
+.drop{
+  position:absolute;
+  top:-20px; /* 从屏幕顶部外开始 */
+  width:2px; height:10px;
+  background: rgba(120,140,160,.6);
+  border-radius: 2px;
+  opacity:.9;
+  animation: rainFall linear forwards;
+}
+@keyframes rainFall {
+  to { transform: translateY(102vh); opacity:.15; } /* 下落超过整个屏幕的高度 */
+}
+/* 为自定义图片下落设计的样式 */
+.rain-image {
+  position: absolute;
+  top: -60px; /* 从更高的地方开始，给图片加载留出时间 */
+  width: 45px; /* 图片的尺寸，您可以根据喜好调整 */
+  height: 45px;
+  object-fit: contain; /* 保证图片比例正确 */
+  pointer-events: none;
+  user-select: none;
+}
+
+/* 带有旋转飘落效果的动画 */
+@keyframes rainFallWithFlutter {
+  from {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(102vh) rotate(360deg); /* 下落的同时旋转一周 */
+    opacity: 0.15;
+  }
+}
+
+/* —— 弹幕气泡（样式不变，动画变了） —— */
+/* 注意：这里统一使用 .bullet 类选择器 */
+.bullet { 
+  position: absolute;
+  bottom: 0; 
+  transform: translateY(100%);
+  
+  font-size: 16px;
+  color: #888; 
+  pointer-events: none;
+  
+  /* --- 关键改动在这里 --- */
+  white-space: normal;      /* 允许正常换行 */
+  word-break: break-all;    /* 允许在任意字符间换行，处理长英文或链接 */
+  text-align: center;       /* 换行后居中对齐，更好看 */
+  max-width: 65vw;          /* 限制最大宽度为屏幕的80%，避免太宽 */
+  box-sizing: border-box;   /* 确保内边距等不会影响宽度计算 */
+  
+  animation: barrage-rise linear forwards;
+  z-index: 5; 
+}
+
+@keyframes barrage-rise {
+  from {
+    transform: translateY(50px); /* 从屏幕底部 50px 的位置开始，避免突然出现 */
+    opacity: 0;
+  }
+  20% {
+      opacity: 1; /* 在 20% 的时间里完全出现 */
+  }
+  to {
+    transform: translateY(-100vh); /* 向上飘出整个屏幕的高度 */
+    opacity: 0; /* 在结尾完全消失 */
+  }
+}
+
+/* --- 新增这个容器样式 --- */
+.popup-container {
+  position: absolute; /* 改为absolute，它会跟随父级滚动 */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* 让它不影响下层元素的点击 */
+  z-index: 100;
+}
+
+/* --- 替换这个气泡样式 --- */
+.year-dot-popup {
+  position: absolute;
+  /* 核心改动：使用rgba设置带透明度的白色背景 */
+  background: rgba(255, 255, 255, 0.18);
+  /* 额外福利：增加一个毛玻璃效果，更有质感 */
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  color: #333;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25); /* 边框也用半透明白色 */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  display: flex;
+  gap: 2px;
+  white-space: nowrap;
+  /* 增加一个平滑出现的动画 */
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+/* 小三角的颜色也要跟着变半透明 */
+.year-dot-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  /* 核心改动：三角的颜色和气泡背景保持一致 */
+  border-color: rgba(255, 255, 255, 0.88) transparent transparent transparent;
+}
+
+/* --- 新增：优雅的折叠小三角样式 --- */
+.chevron-arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 8px;
+  vertical-align: middle; /* 让它和文字垂直居中对齐 */
+  border-style: solid;
+  border-width: 5px 0 5px 7px; /* 上下5px, 左边7px，构成一个三角 */
+  border-color: transparent transparent transparent #888; /* 只有左边有颜色 */
+  transition: transform 0.2s ease-out; /* 平滑旋转动画 */
+  transform-origin: center; /* 确保从中心旋转 */
+}
+
+/* 当它有一个 'active' 类时，旋转90度朝下 */
+.chevron-arrow.active {
+  transform: rotate(90deg);
+}
+  </style>
+</head>
+<body>
+<div id="mainApp">
+  <!-- 日历Tab -->
+  <div class="view-page" id="tab-calendar">
+    <div id="calendarBox"></div>
+  </div>
+  <!-- 打卡Tab -->
+  <div class="view-page" id="tab-punch">
+    <div id="punchBox"></div>
+  </div>
+  <!-- 奖惩池Tab -->
+  <div class="view-page" id="tab-pool">
+  <div class="reward-main">
+    <!-- 卡片翻转的舞台 (不变) -->
+    <div id="cardRow" class="card-row"></div>
+    <!-- 抽卡按钮的容器 (不变) -->
+    <div id="drawBtnContainer">
+      <button id="drawBtn" class="draw-btn" onclick="drawCard()">🐦‍⬛</button>
+    </div>
+  </div>
+
+  <!-- ✅ 修改：把结果展示区做成一个独立的弹窗 -->
+  <div id="rewardPopup" class="reward-popup-overlay" onclick="resetDraw()">
+    <div onclick="event.stopPropagation()"> <!-- 防止点击卡片也关闭弹窗 -->
+        <div id="rewardFrame" class="reward-frame" style="position:relative; z-index:10;">
+          <div class="rf-title" id="rfTitle"></div>
+          <div class="rf-content" id="rfContent"></div>
+        </div>
+        <div style="position:relative; z-index:10; margin-top:20px; text-align:center;">
+          <button class="again-btn" onclick="resetDraw()">再抽一次</button>
+        </div>
+    </div>
+  </div>
+</div>
+  <!-- 我 Tab -->
+<div class="view-page" id="tab-me" style="padding:48px 8px 16px 8px;text-align:center;">
+
+  <!-- 1) 页面设置（= 你原来的“打卡项目设置” + 可见项等） -->
+  <div class="setting-panel" id="meSettingsPanel">
+    <div class="setting-panel-header" onclick="togglePanel('meSettingsPanel')">
+      页面设置
+    </div>
+    <div class="setting-panel-body" style="display:none;">
+  <div class="item-settings-panel">
+    <div id="item-list"></div>
+    <div class="bottom-row" style="margin-top:10px;">
+  <button class="add-btn" onclick="addNewItemRow()">+ 新增项目</button>
+  <div class="total-score" id="enabledTotalScore">总分：0</div>
+</div>
+  </div>
+</div>
+  </div>
+
+  <!-- 2) 奖池设置（含 A/B/P 标签、可编辑卡片列表、分数阈值） -->
+<div class="setting-panel" id="poolPanel">
+  <div class="setting-panel-header" onclick="togglePanel('poolPanel')">
+    奖池设置
+  </div>
+  <!-- ✅ 重点：#poolList 必须在 body 里面；删掉多余的 </div> -->
+  <div class="setting-panel-body" style="display:none;">
+    <!-- 分数阈值，放在奖池设置里 -->
+    <div class="item-settings-panel">
+      <div class="item-row threshold-row">
+        <label class="th-label">A档 ≥</label>
+        <input class="th-input" type="number" id="thA" oninput="saveThresholds()">
+        <label class="th-label">B档 ≥</label>
+        <input class="th-input" type="number" id="thB" oninput="saveThresholds()">
+        <span class="th-label">P档：低于 B</span>
+      </div>
+    </div>
+
+    <!-- ✅ 这里是渲染容器，必须留在 body 里 -->
+    <div id="poolList"></div>
+  </div>
+</div>
+
+  <!-- 3) 色彩主题 -->
+  <div class="setting-panel" id="colorPanel">
+  <div class="setting-panel-header" onclick="togglePanel('colorPanel')">
+    色彩主题
+  </div>
+  <div class="setting-panel-body" style="display:none; text-align:left; padding:12px;">
+    <div style="margin:0 8px 12px; font-size:14px; color:#888;">
+      直接编辑以下颜色（#RRGGBB / rgba）。A/B/P 与打卡选中态即时生效。
+    </div>
+    <div id="colorList"></div>
+    <div class="bottom-row" style="margin-top:14px;">
+      <button class="add-btn" onclick="resetThemeToDefault()">恢复默认</button>
+      <div class="total-score">改完即生效并保存</div>
+    </div>
+  </div>
+</div>
+
+  <!-- 4) 导入 / 导出 -->
+<div class="setting-panel" id="ioPanel">
+  <div class="setting-panel-header" onclick="togglePanel('ioPanel')">
+    导入 / 导出
+  </div>
+
+  <div class="setting-panel-body" style="display:none; text-align:left; padding:12px;">
+
+    <!-- 密码设置 -->
+    <div class="item-settings-panel">
+      <div class="me-section-title">密码设置</div>
+      <div class="item-row row-2col">
+  <div class="flex">
+    <input class="item-name" id="pwdInput" placeholder="设置或更新密码" type="password" style="min-width:200px;">
+  </div>
+  <button class="add-btn nowrap right" onclick="setIoPassword()">保存密码</button>
+</div>
+      <div style="font-size:12px;color:#888;padding-left:10px;">
+        仅用于导入/导出时校验；本地保存哈希。
+      </div>
+    </div>
+
+    <!-- 数据导出 -->
+    <div class="item-settings-panel">
+      <div class="me-section-title">数据导出</div>
+      <div class="item-row row-2col">
+        <button class="add-btn" onclick="exportAll()">导出到文件</button>
+        <div class="flex"></div>
+        <button class="add-btn" onclick="copyAll()">复制数据</button>
+      </div>
+    </div>
+
+    <!-- 数据导入 -->
+    <div class="item-settings-panel">
+      <div class="me-section-title">数据导入</div>
+      <div class="item-row row-2col">
+  <div class="flex">
+    <input type="file" id="importFile" accept=".json" onchange="importAll()">
+  </div>
+  <button class="add-btn nowrap right" onclick="importFromClipboard()">从剪贴板导入</button>
+</div>
+      <div style="font-size:12px;color:#888;padding-left:10px;">
+        导入会覆盖同名数据，执行前会弹窗要求输入密码。
+      </div>
+
+      <!-- 清空数据按钮（测试用） -->
+      <button onclick="clearAllData()" style="background:#ccc;color:#000;padding:6px 12px;border:none;border-radius:4px;margin-top:8px;">
+        清空所有数据（测试用）
+      </button>
+    </div>
+
+  </div>
+</div>
+ 
+</div>
+
+<div id="fxLayer" class="fx-layer" style="display: none;"></div>
+
+<!-- TabBar (修改后) -->
+<div class="tabbar" id="tabBar">
+  <div class="tab-btn" data-tab="calendar">
+    <div class="icon">
+      <!-- 把你的日历SVG代码粘贴在这里 -->	
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <title>日历</title>
+        <path d="M4 7C4 6.44772 4.44772 6 5 6H19C19.5523 6 20 6.44772 20 7V19C20 19.5523 19.5523 20 19 20H5C4.44772 20 4 19.5523 4 19V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M16 4V8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8 4V8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M4 10H20" stroke="currentColor" stroke-width="2"/>
+      </svg>
+    </div>
+  </div>
+  <div class="tab-btn" data-tab="punch">
+    <div class="icon">
+      <!-- 把你的打卡SVG代码粘贴在这里 -->
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <title>打卡</title>
+        <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+  <div class="tab-btn" data-tab="pool">
+    <div class="icon">
+      <!-- 把你的奖池SVG代码粘贴在这里 -->
+       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <title>奖池</title>
+        <path d="M20.84 4.61C20.3292 4.09902 19.7228 3.69364 19.0554 3.41708C18.3879 3.14052 17.6725 2.99817 16.95 3C15.76 3 14.63 3.49 13.84 4.29L12 6.13L10.16 4.29C9.37 3.49 8.24 3 7.05 3C6.32754 2.99817 5.6121 3.14052 4.94464 3.41708C4.27718 3.69364 3.67081 4.09902 3.16 4.61C1.22 6.55 1.43 9.71 4.04 12.33L12 20.29L19.96 12.33C22.57 9.71 22.78 6.55 20.84 4.61Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+  <div class="tab-btn" data-tab="me">
+    <div class="icon">
+      <!-- 把你的“我”SVG代码粘贴在这里 -->
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <title>我</title>
+        <path d="M20 21V19C20 16.7909 18.2091 15 16 15H8C5.79086 15 4 16.7909 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+</div>
+<script>
+window.onerror = function(msg, src, line, col, err) {
+  alert('JS Error: ' + msg + '\n' + src + ':' + line + ':' + col);
+};
+// —— 预声明，挡住 TDZ ——  (放在 window.onerror 下面)
+let punchItems = [];
+let poolData = {};
+let poolThresholds = { A:48, B:34 };
+let visibleItems = [];
+let theme = null;
+let ioPasswordHash = '';
+/* --------- 数据定义 ----------- */
+const punchItemsRaw = [
+  {name:"示例项目1", score:1}, 
+  {name:"示例项目2", score:2}
+];
+// 用于记录当前可见项目（对“启用项”的索引，默认全选）
+try{
+  visibleItems = JSON.parse(localStorage.getItem('visibleItems'));
+  if(!Array.isArray(visibleItems)) throw new Error();
+}catch{
+  // 默认全选：基于当前启用项
+  const act = getActiveItems();
+  visibleItems = act.map((_, idx)=>idx);
+  localStorage.setItem('visibleItems', JSON.stringify(visibleItems));
+}
+// emoji表情
+let emojiList = [];
+try {
+    const storedEmojis = localStorage.getItem('emojiList');
+    if (storedEmojis) {
+        emojiList = JSON.parse(storedEmojis);
+    }
+    if (!Array.isArray(emojiList) || emojiList.length === 0) {
+        // 如果存储是空的或无效的，就使用默认值
+        emojiList = ["😃","😆","🥲","🙃","😇","🥰","🙄","🥳","😔","😤","😑","🥱","🤡","🤒","🖕","🩸"];
+        localStorage.setItem('emojiList', JSON.stringify(emojiList));
+    }
+} catch (e) {
+    // 如果解析出错，也使用默认值
+    emojiList = ["😃","😆","🥲","🙃","😇","🥰","🙄","🥳","😔","😤","😑","🥱","🤡","🤒","🖕","🩸"];
+}
+// 数据结构 punchLog[year][month][day] = {score, emojis:[], checked:[], note:""}
+let punchLog = {};
+try{
+  let raw = localStorage.getItem('isla_punchLog');
+  if(raw) punchLog = JSON.parse(raw)||{};
+}catch(e){ punchLog = {}; }
+
+// ========== 项目设置可编辑版 ==========
+punchItems = [];
+function loadItems() {
+  let data = localStorage.getItem('punchItems');
+  if (data) {
+    try { 
+      punchItems = JSON.parse(data); 
+      if (!Array.isArray(punchItems) || punchItems.length === 0) {
+        throw new Error("Invalid or empty items");
+      }
+    } catch {
+      // 如果本地数据有问题，也用默认值覆盖
+      punchItems = JSON.parse(JSON.stringify(punchItemsRaw)).map(item => ({ ...item, show: true }));
+    }
+  } else {
+    // 如果本地存储完全没有，使用默认值初始化
+    punchItems = JSON.parse(JSON.stringify(punchItemsRaw)).map(item => ({ ...item, show: true }));
+  }
+}
+function computeEnabledTotalScore(){
+  loadItems();
+  let sum = 0;
+  (punchItems||[]).forEach(it=>{
+    if (it?.show !== false) sum += Number(it?.score||0);
+  });
+  return sum;
+}
+function updateEnabledTotalScoreUI(){
+  const el = document.getElementById('enabledTotalScore');
+  if (!el) return;
+  el.textContent = '总分：' + computeEnabledTotalScore();
+}
+
+function saveItems() {
+  localStorage.setItem('punchItems', JSON.stringify(punchItems));
+}
+
+// 当前启用（show!==false）的项目清单 + 一致排序（type相邻，再按name）
+function getActiveItems(){
+  loadItems();
+  let list = (punchItems||[]).filter(it => it?.show !== false);
+  list.sort((a,b)=>{
+    const ta = String(a.type||'').localeCompare(String(b.type||''));
+    if(ta!==0) return ta;
+    return String(a.name||'').localeCompare(String(b.name||''));
+  });
+  return list;
+}
+// 显示短名：优先 short，其次name截断
+function getShortLabel(it){
+  if(it?.short && String(it.short).trim()) return it.short.trim();
+  const nm = String(it?.name||'');
+  return nm.length>4 ? nm.slice(0,4)+'…' : nm;
+}
+
+function shortText(text, maxLen = 5) {
+  return text.length > maxLen ? text.slice(0, maxLen) + '…' : text;
+}
+function renderItemSettings() {
+  loadItems();
+  const container = document.getElementById('item-list');
+  let html = '';
+  (punchItems||[]).forEach((item, idx) => {
+    html += `
+      <div class="item-row">
+        <input type="checkbox" class="item-checkbox" ${item.show !== false ? 'checked' : ''} onchange="editItemCell(${idx},'show',this.checked)">
+        <input class="item-name" value="${escapeHtml(item.name||'')}" maxlength="8"
+       oninput="editItemCellLive(${idx},'name',this.value)"
+       onblur="commitItemCell(${idx},'name',this.value)">
+        <input class="item-score" type="number" value="${escapeHtml(String(item.score??1))}" oninput="editItemCell(${idx},'score',this.value)">
+        <input class="item-type" value="${escapeHtml(item.type||'')}"
+       oninput="editItemCellLive(${idx},'type',this.value)"
+       onblur="commitItemCell(${idx},'type',this.value)">
+        <input class="item-short" value="${escapeHtml(item.short||'')}" oninput="editItemCell(${idx},'short',this.value)">
+        <button class="del-btn" onclick="deleteItem(${idx})" title="删除">🗑️</button>
+      </div>
+      <div class="row-divider"></div>
+    `;
+  });
+  container.innerHTML = html;
+  updateEnabledTotalScoreUI();
+}
+// ---- 让页面设置可编辑：核心更新函数 ----
+// 实时保存但不重排（避免失焦）
+function editItemCellLive(idx, field, val){
+  loadItems();
+  if(!punchItems[idx]) return;
+  punchItems[idx][field] = (field==='score') ? (Number(val)||0) : String(val);
+  saveItems();
+  updateEnabledTotalScoreUI();
+}
+
+// 失焦后再重排 & 刷新依赖（只在 name/type 这种会影响排序时做）
+function commitItemCell(idx, field, val){
+  editItemCellLive(idx, field, val);
+  if(field==='name' || field==='type'){
+    const act = getActiveItems();
+    visibleItems = act.map((_, i)=>i);
+    localStorage.setItem('visibleItems', JSON.stringify(visibleItems));
+    renderItemSettings();
+    updateEnabledTotalScoreUI();
+rerenderChartPanel('monthStat');
+    rerenderChartPanel('yearStat');
+    renderCalendarPage();
+  }
+}
+function editItemCell(idx, field, val) {
+  loadItems();
+  if (!punchItems[idx]) return;
+
+  if (field === 'show') {
+    punchItems[idx][field] = !!val;
+  } else if (field === 'score') {
+    punchItems[idx][field] = Number(val) || 0;
+  } else {
+    punchItems[idx][field] = String(val);
+  }
+  saveItems();
+
+  if (field === 'show' || field === 'type' || field === 'name') {
+    const act = getActiveItems();
+    visibleItems = act.map((_, i) => i);
+    localStorage.setItem('visibleItems', JSON.stringify(visibleItems));
+    renderItemSettings();
+    updateEnabledTotalScoreUI();    // ← 新增
+    rerenderChartPanel('monthStat');
+    rerenderChartPanel('yearStat');
+    renderCalendarPage();
+  } else {
+    updateEnabledTotalScoreUI();    // ← 新增：例如只改分数
+  }
+}
+function addNewItemRow(){
+  punchItems.push({name:'', score:1, type:'', short:'', show:true});
+  saveItems();
+  renderItemSettings();
+  updateEnabledTotalScoreUI();   // ← 新增
+}
+function deleteItem(idx) {
+  if(!confirm('确定要删除该项目吗？')) return;
+  punchItems.splice(idx,1);
+  saveItems();
+  renderItemSettings();
+  updateEnabledTotalScoreUI();   // ← 新增
+}
+/* --------- 日历Tab ----------- */
+const calendarBox = document.getElementById('calendarBox');
+const today = new Date();
+let curYear = today.getFullYear(), curMonth = today.getMonth()+1, curDay = today.getDate();
+let viewYear = curYear, viewMonth = curMonth, viewDay = curDay;
+let calendarMode = "month"; // "month"|"year"
+let lastFilterTargetId = null;  // 记住触发筛选的面板 id（'monthStat' 或 'yearStat'）
+let punchDayViewMode = false; // 补卡状态
+
+function openItemFilter(id, type) {
+  lastFilterTargetId = id;
+  const act = getActiveItems();
+
+  let html = `
+    <style>
+      #item-filter-dialog input[type="checkbox"]:checked { accent-color: #ffbb66; }
+    </style>
+    <div id="item-filter-dialog" style="
+      position:fixed; bottom:24px; right:14px; z-index:2001;
+      background:#fff; border-radius:15px 13px 10px 10px;
+      box-shadow:0 0 18px #0003; padding:18px 4px 12px 16px;">
+  `;
+
+  act.forEach((item, idx) => {
+    html += `<label style="margin-right:15px;display:inline-block;">
+      <input type="checkbox" value="${idx}" ${visibleItems.includes(idx) ? 'checked' : ''}/>
+      ${item.name || ('项目'+(idx+1))}
+    </label>`;
+  });
+
+  html += `</div>
+    <div id="item-filter-mask"
+      style="position:fixed;left:0;top:0;width:100vw;height:100vh;background:#0002;z-index:2000;"
+      onclick="applyItemFilter()"></div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('item-filter-dialog').addEventListener('click', e => e.stopPropagation());
+}
+
+function applyItemFilter() {
+  const checks = [...document.querySelectorAll('#item-filter-dialog input[type=checkbox]:checked')];
+  visibleItems = checks.map(c => +c.value);
+  localStorage.setItem('visibleItems', JSON.stringify(visibleItems));
+  closeItemFilter();
+  rerenderChartPanel(lastFilterTargetId);  // ✅ 根据来源刷新 monthStat 或 yearStat
+}
+
+function closeItemFilter(){
+  document.getElementById('item-filter-dialog')?.remove();
+  document.getElementById('item-filter-mask')?.remove();
+}
+
+function rerenderChartPanel(id = 'monthStat') {
+  const el = document.getElementById(id);
+  if (!el) return; // 防御，避免 null.outerHTML 报错
+  el.outerHTML = (id === 'yearStat') ? getYearStatPanelHtml() : getMonthStatPanelHtml();
+}
+
+function getMonthDays(y,m){
+  let days = [31,28,31,30,31,30,31,31,30,31,30,31];
+  if(((y%4==0&&y%100!=0)||y%400==0)) days[1]=29;
+  return days[m-1];
+}
+function getFirstDay(y,m){ return new Date(y,m-1,1).getDay(); }
+
+function renderCalendarPage(){
+  if(calendarMode==="month"){
+    // ✅ 修改这里的HTML结构
+    let html = `<div class="calendar-header">
+      <div class="calendar-header-left">
+        <button class="calendar-switch" onclick="switchToYear()">年视图</button>
+      </div>
+      <div class="calendar-title">${viewYear}年${viewMonth}月</div>
+      <div class="calendar-header-right">
+        <button class="calendar-switch" onclick="changeMonth(-1)">&lt;</button>
+        <button class="calendar-switch" onclick="changeMonth(1)">&gt;</button>
+      </div>
+    </div>
+    <table class="calendar-table">
+      <thead>
+        <tr><th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr>
+      </thead>
+      <tbody id="monthBody"></tbody>
+    </table>`;
+    calendarBox.innerHTML = html + getMonthStatPanelHtml();
+    renderMonthTable(viewYear,viewMonth);
+  } else {
+    let html = `<div class="year-header">
+      <button class="year-nav-btn" onclick="changeYear(-1)">&lt;</button>
+      <div class="year-title">${viewYear}年</div>
+      <button class="year-nav-btn" onclick="changeYear(1)">&gt;</button>
+    </div>
+    <div class="year-calendar" id="yearCalendar"></div>`;
+    calendarBox.innerHTML = html + getYearStatPanelHtml(); // 年柱状图插到年历table后
+    renderYearCalendar(viewYear);
+  }
+}
+function renderMonthTable(y,m){
+  const tb = document.getElementById('monthBody');
+  tb.innerHTML = '';
+  let days = getMonthDays(y,m);
+  let first = getFirstDay(y,m);
+  let row = [];
+  for(let i=0;i<first;i++) row.push('');
+  for(let d=1;d<=days;d++) row.push(d);
+  while(row.length%7!==0) row.push('');
+  for(let r=0;r<row.length;r+=7){
+    let tr = document.createElement('tr');
+    for(let c=0;c<7;c++){
+      let day = row[r+c];
+      let td = document.createElement('td');
+      if(day){
+        td.className = 'calendar-day';
+        td.onclick = ()=> {
+          viewYear = y; viewMonth = m; viewDay = day;
+          punchDayViewMode = true; // 补卡
+          switchTab('punch');
+        };
+        const log = punchLog[y]?.[m]?.[day];
+        const val = log?.score || 0;
+
+        if(val>0){
+          const pool = getPoolByScore(val);   // ✅ 改为阈值判定
+          td.classList.add(pool);             // ✅ A/B/P
+        }
+
+        const emojiHtml = (log?.emojis?.length > 0)
+  ? log.emojis
+      .map(v => (typeof v === 'number' ? emojiList[v] : v)) // 兼容旧数据
+      .slice(0, 2)
+      .join('')
+  : '';
+        const scoreHtml = val ? `<span class="day-score">${val}</span>` : '';
+
+        td.innerHTML = `<span class="day-num">${day}</span>
+                        <span class="day-emoji">${emojiHtml}</span>
+                        ${scoreHtml}`;
+      }else{
+        td.className = 'calendar-day disable';
+        td.innerHTML = '';
+      }
+      tr.appendChild(td);
+    }
+    tb.appendChild(tr);
+  }
+}
+function changeMonth(delta){
+  let m = viewMonth + delta, y = viewYear;
+  if(m<1){m=12;y--;}
+  if(m>12){m=1;y++;}
+  viewMonth = m; viewYear = y;
+  renderCalendarPage();
+}
+function switchToYear(){
+  calendarMode = "year";
+  renderCalendarPage();
+}
+function switchToMonth(){
+  calendarMode = "month";
+  renderCalendarPage();
+}
+function changeYear(delta){
+  viewYear += delta;
+  renderCalendarPage();
+}
+function renderYearCalendar(year){
+  const yearCalendar = document.getElementById('yearCalendar');
+  if (!yearCalendar) return;
+  
+  // ✅ 增加一个相对定位的父级，并放入气泡容器
+  yearCalendar.style.position = 'relative'; 
+  
+  let html = `<div class="popup-container" id="yearPopupContainer"></div>`; // 气泡画布
+
+  for(let m=1; m<=12; m++){
+    const mdays = getMonthDays(year,m);
+    
+    html += `<div class="month-block">
+      <div class="month-title" onclick="jumpToMonth(${year},${m})">${m}月</div>
+      <table class="days-table"><tbody>`;
+      
+    let d = 1;
+    const firstDay = getFirstDay(year,m);
+    for(let row=0; row<6; row++){
+      html += "<tr>";
+      for(let col=0; col<7; col++){
+        if(row===0 && col<firstDay){
+          html += `<td></td>`;
+        } else if(d<=mdays){
+          const log = punchLog[year]?.[m]?.[d];
+          const val = log?.score || 0;
+          let cls = "day-dot empty";
+          if(val>0){
+            const pool = getPoolByScore(val);
+            cls = getYearDotClassByPool(pool);
+          }
+          html += `<td ${val > 0 ? `onclick="showYearDotEmoji(event, ${year}, ${m}, ${d})"` : ''}><span class="${cls}"></span></td>`;
+          d++;
+        } else {
+          html += `<td></td>`;
+        }
+      }
+      html += "</tr>";
+      if(d > mdays) break;
+    }
+    html += `</tbody></table></div>`;
+  }
+  yearCalendar.innerHTML = html;
+  
+  // ✅ 在切换页面或年份时，清空气泡
+  function clearAllPopups() {
+      const container = document.getElementById('yearPopupContainer');
+      if (container) container.innerHTML = '';
+  }
+  // 绑定事件，当年历视图滚动时，清空气泡（这是最简单的跟随方案）
+  yearCalendar.onscroll = clearAllPopups;
+}
+
+function showYearDotEmoji(event, year, month, day) {
+  event.stopPropagation();
+
+  const popupContainer = document.getElementById('yearPopupContainer');
+  if (!popupContainer) return;
+
+  const log = punchLog[year]?.[month]?.[day];
+  if (!log || !log.emojis || log.emojis.length === 0) return;
+
+  // ✅ 检查是否已存在该日期的气泡，如果存在则移除，实现“开关”效果
+  const existingPopupId = `popup-${year}-${month}-${day}`;
+  const existingPopup = document.getElementById(existingPopupId);
+  if (existingPopup) {
+    existingPopup.remove();
+    return;
+  }
+  
+  const popup = document.createElement('div');
+  popup.id = existingPopupId; // ✅ 给每个气泡一个唯一的ID
+  popup.className = 'year-dot-popup';
+  popup.innerHTML = log.emojis
+    .map(v => (typeof v === 'number' ? (emojiList[v] || '') : String(v)))
+    .filter(Boolean)
+    .join('');
+
+  popupContainer.appendChild(popup);
+
+  // 定位逻辑不变，但现在是相对于popupContainer
+  const dot = event.currentTarget;
+  const dotRect = dot.getBoundingClientRect();
+  const containerRect = popupContainer.getBoundingClientRect();
+  
+  const popupRect = popup.getBoundingClientRect(); // 获取气泡的尺寸
+
+  let top = (dotRect.top - containerRect.top) - popupRect.height - 4;
+  let left = (dotRect.left - containerRect.left) + (dotRect.width / 2) - (popupRect.width / 2);
+
+  popup.style.top = `${top}px`;
+  popup.style.left = `${left}px`;
+// 添加一个一次性的点击事件，点击页面任何地方都会关闭气泡
+  function closePopup() {
+    if (popup) popup.remove();
+    document.removeEventListener('click', closePopup);
+  }
+  setTimeout(() => document.addEventListener('click', closePopup), 0);
+}
+
+function jumpToMonth(y,m){
+  viewYear = y; viewMonth = m;
+  calendarMode = "month";
+  renderCalendarPage();
+}
+/* ========= 柱状图统计功能 ========== */
+
+// 简写名称（顺序要与 punchItemsRaw 一致）
+// 项目分组（邻近同类）：按顺序不变即可，柱子会按数组顺序显示。
+
+// 折叠面板生成函数 + 筛选按钮
+function renderStatPanel(id, title, chartHtml, open = false) {
+  // 先在这里加一行，生成type
+  let type = id === 'monthStat' ? 'month' : 'year';
+
+  return `
+    <div class="stat-panel" id="${id}" style="position:relative;">
+      <div class="stat-panel-header" onclick="toggleStatPanel('${id}')">
+        <span>${title}</span>
+        <span class="chevron-arrow ${open ? 'active' : ''}"></span>
+      </div>
+      <div class="stat-panel-body" style="display:${open ? 'block' : 'none'}">
+        <button
+          onclick="event.stopPropagation();openItemFilter('${id}', '${type}')"
+          style="
+            position:absolute;
+            right:0px; bottom:2px;
+            font-size:22px;
+            background:transparent; border:none;
+            box-shadow:none; color:#999; cursor:pointer; z-index:2;"
+        >🐈</button>
+        ${chartHtml}
+      </div>
+    </div>
+  `;
+}
+
+// 三角折叠/展开（不变）
+// --- 这是新函数 ---
+window.toggleStatPanel = function(id) {
+  const panel = document.getElementById(id);
+  if (!panel) return;
+
+  const body = panel.querySelector('.stat-panel-body');
+  const triangle = panel.querySelector('.chevron-arrow');
+  if (!body || !triangle) return;
+
+  const isOpen = body.style.display === 'block';
+  body.style.display = isOpen ? 'none' : 'block';
+  triangle.classList.toggle('active', !isOpen);
+};
+
+// 统计打卡天数
+function getItemStats(year, month = null) {
+  const act = getActiveItems();
+  const activeLen = act.length;
+  let stats = new Array(activeLen).fill(0);
+
+  if(month){ // 月
+    const days = getMonthDays(year, month);
+    for(let d=1; d<=days; d++){
+      const log = punchLog[year]?.[month]?.[d];
+      if(!log?.checked) continue;
+      for(const idx of log.checked){
+        if(Number.isInteger(idx) && idx>=0 && idx<activeLen) stats[idx]++;
+      }
+    }
+  }else{ // 年
+    for(let m=1; m<=12; m++){
+      const mdays = getMonthDays(year, m);
+      for(let d=1; d<=mdays; d++){
+        const log = punchLog[year]?.[m]?.[d];
+        if(!log?.checked) continue;
+        for(const idx of log.checked){
+          if(Number.isInteger(idx) && idx>=0 && idx<activeLen) stats[idx]++;
+        }
+      }
+    }
+  }
+  return stats;
+}
+
+// 绘制柱状图（浅灰柱、2-4字项目名、顶部显示次数，底部一条横线，横向可滚动）
+// 柱状图均匀分布、y轴齐平版本
+// 绘制柱状图（均匀分布，Y轴齐平版，横向滚动，底部对齐0%，顶部对齐100%）
+function renderBarChart(stats, totalDays, idPrefix='') {
+  const act = getActiveItems();
+
+  const BAR_HEIGHT = 80;
+  const LABEL_HEIGHT = 28;
+  const BAR_WIDTH = 24;
+  const BAR_GAP = 16;
+  const Y_LABELS = [100, 80, 60, 40, 20, 0];
+  const minWidth = (BAR_WIDTH + BAR_GAP) * stats.length;
+
+  let yLabelsHtml = '';
+  for (let i = 0; i < Y_LABELS.length; i++) {
+    // ✅ 把线条颜色改得更浅(eee)，不那么抢眼
+    let top = (BAR_HEIGHT / (Y_LABELS.length - 1)) * i;
+    yLabelsHtml += `
+      <div style="position:absolute;left:0;width:4px;height:1px;background:#999;top:${top}px;"></div>
+      <div style="position:absolute;left:-34px;top:${top-8}px;width:32px;text-align:right;font-size:12px;color:#bbb;z-index:2;">${Y_LABELS[i]}%</div>
+    `;
+  }
+
+  let bars = '';
+  for (let ii = 0; ii < visibleItems.length; ii++) {
+    const i = visibleItems[ii];
+    const item = act[i];
+    if(!item) continue;
+    
+    const count = stats[i] || 0;
+    const pct = totalDays > 0 ? Math.round(count / totalDays * 100) : 0;
+
+    const countLabelHtml = count > 0 ? `
+      <div style="
+        position: absolute;
+        bottom: ${pct}%;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 11px;
+        color: #888;
+        padding: 0 2px;
+        line-height: 1.1;
+        z-index: 3;
+        /* --- 3. 移除了数字标签的背景色 --- */
+      ">
+        ${count}
+      </div>
+    ` : '';
+
+    bars += `
+      <div style="display:flex;flex-direction:column;align-items:center;width:${BAR_WIDTH}px;flex-shrink:0;">
+        <div style="position:relative;width:100%;height:${BAR_HEIGHT}px;display:flex;align-items:flex-end;">
+          
+          <!-- 1. 移除了原来在这里的灰色背景条 -->
+          <!-- 2. 给彩色柱条加上z-index，让它“浮”在线条之上 -->
+          <div style="
+            position: relative; /* 必须有定位，z-index才能生效 */
+            z-index: 2; /* 关键！让它盖住z-index为默认0的横线 */
+            width:100%;
+            height:${pct}%;
+            background:#cfd3db;
+            border-radius:6px 6px 0 0;
+            transition:height .3s;">
+          </div>
+          
+          ${countLabelHtml}
+
+        </div>
+        <div style="
+          font-size:12px;color:#444;
+          white-space:normal;word-break:break-all;
+          line-height:13px;text-align:center;width:100%;
+          height:${LABEL_HEIGHT}px;
+          display:flex;align-items:flex-end;justify-content:center;">
+          ${getShortLabel(item)}
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div style="display:flex;flex-direction:row;align-items:flex-end;position:relative;padding:10px 10px 0 26px;">
+      <div style="position:relative;height:${BAR_HEIGHT + LABEL_HEIGHT}px;width:10px;flex-shrink:0;">
+        ${yLabelsHtml}
+      </div>
+      <div style="overflow-x:auto;width:100%;">
+        <div style="display:flex;align-items:flex-end;gap:${BAR_GAP}px;min-width:${minWidth}px;height:${BAR_HEIGHT + LABEL_HEIGHT}px;">
+          ${bars}
+        </div>
+      </div>
+    </div>
+  `;
+}
+// 统计实际有打卡的天数
+function getMonthStatPanelHtml() {
+  const stats = getItemStats(viewYear, viewMonth);
+  const totalDays = getMonthDays(viewYear, viewMonth);
+
+  // 统计本月已打卡天数
+  let daysWithRecord = 0;
+  for (let d = 1; d <= totalDays; d++) {
+    if (punchLog[viewYear]?.[viewMonth]?.[d]?.score > 0) daysWithRecord++;
+  }
+
+  const chartHtml = renderBarChart(stats, totalDays, 'month');
+  // 只显示下面这一行，并且靠左
+  const infoLine = `<div style="font-size:12px;color:#aaa;margin-top:2px;">${daysWithRecord}天 / ${totalDays}天</div>`;
+  return renderStatPanel('monthStat',
+    `${viewYear}年${viewMonth}月打卡统计`,
+    chartHtml + infoLine,
+    false
+  );
+}
+
+function getYearStatPanelHtml() {
+  const stats = getItemStats(viewYear);
+  const totalDays = getMonthDays(viewYear, 2) === 29 ? 366 : 365;
+
+  // 统计全年已打卡天数
+  let daysWithRecord = 0;
+  for (let m = 1; m <= 12; m++) {
+    let mdays = getMonthDays(viewYear, m);
+    for (let d = 1; d <= mdays; d++) {
+      if (punchLog[viewYear]?.[m]?.[d]?.score > 0) daysWithRecord++;
+    }
+  }
+  const chartHtml = renderBarChart(stats, totalDays, 'year');
+  const infoLine = `<div style="font-size:12px;color:#aaa;margin-top:2px;">已打卡天数：${daysWithRecord}天 / 统计天数：${totalDays}天</div>`;
+  return renderStatPanel('yearStat',
+    `${viewYear}年打卡统计`,
+    chartHtml + infoLine,
+    false
+  );
+}
+
+/* ========== 柱状图样式 ========== */
+const statPanelCss = `
+.stat-panel {margin:16px 0 10px 0;border:1px solid #eee;border-radius:11px;background:#fafbfc;}
+.stat-panel-header {display:flex;align-items:center;justify-content:space-between;padding:9px 13px;font-weight:500;font-size:15px;cursor:pointer;}
+.stat-panel-body {padding: 4px 10px 10px 10px;}
+.stat-triangle {margin-left:8px;font-size:14px;color:#888;}
+.bar-chart-row {display:flex;align-items:flex-end;gap:5px;}
+.bar-item {transition:.2s;}
+.bar-item .bar-outer {background:none;}
+.bar-item .bar-outer>div:last-child {background:#bbb;}
+`;
+(function(){ // 动态插入样式
+  let s = document.createElement('style'); s.innerHTML = statPanelCss;
+  document.head.appendChild(s);
+})();
+
+/* ========== 打卡Tab ========== */
+let shaking = false, shakeTimer = null;
+function renderPunchPage(y, m, d) {
+  const box = document.getElementById('punchBox');
+  box.innerHTML = '';
+
+  const log = punchLog[y]?.[m]?.[d] || { score: 0, emojis: [], checked: [], note: "" };
+
+  let selectedEmojis = (log.emojis || [])
+    .map(v => (typeof v === 'number' ? (emojiList[v] || '') : String(v)))
+    .filter(Boolean);
+
+  let checkedSet = new Set(log.checked || []);
+  // ✅ 不要直接用旧分数，而是根据勾选的项目重新计算
+  let scoreTotal = 0;
+  const activeItems = getActiveItems(); // 获取所有启用的打卡项目
+  checkedSet.forEach(idx => {
+    // 确保这个项目还存在，并且有分数
+    if (activeItems[idx] && activeItems[idx].score) {
+      scoreTotal += Number(activeItems[idx].score);
+    }
+  });
+  let noteText = log.note || '';
+
+  const isSelected = (idx) => {
+    const val = emojiList[idx];
+    if (!Array.isArray(selectedEmojis)) return false;
+    return selectedEmojis.includes(idx) || selectedEmojis.includes(val);
+  };
+
+  // ✅ 第1个改动：给 emoji 区套上卡片外壳
+  let emojiHtml = `
+    <div class="punch-section-card">
+      <div class="emoji-title">❣️ 宝宝今天开心吗?</div>
+      <div class="emoji-scroll-row" id="emojiRow">
+  `;
+  emojiList.forEach((emj, idx) => {
+    emojiHtml += `
+      <div class="emoji-btn ${isSelected(idx) ? 'selected' : ''}" data-idx="${idx}">
+        ${emj}
+        <span class="emoji-delete-btn" data-idx="${idx}">&times;</span>
+      </div>
+    `;
+  });
+  emojiHtml += `
+      <div class="emoji-btn add" id="emojiAddBtn">+</div>
+    </div>
+  </div>`; // ✅ 卡片外壳闭合
+
+  // ✅ 第2个改动：给 checkcheck 区套上卡片外壳
+  let checkHtml = `
+    <div class="punch-section-card">
+      <div class="check-title">✓ checkcheck <span class="score-bar" id="scoreBar">${scoreTotal}</span></div>
+      <div class="check-list" id="checkList"></div>
+    </div>
+  `; // ✅ 卡片外壳闭合
+
+  // ✅ 第3个改动：给碎碎念区套上卡片外壳
+  let noteHtml = `
+    <div class="punch-section-card">
+      <div class="note-title">💌 今天的碎碎念</div>
+      <textarea class="note-textarea" id="noteInput" placeholder="想说什么都可以写在这里～">${noteText || ''}</textarea>
+      <div class="submit-row">
+        <button class="submit-btn" id="submitBtn">提交打卡</button>
+        <div id="submitTip" class="submit-tip"></div>
+      </div>
+    </div>
+  `; // ✅ 卡片外壳闭合
+
+  // ✅ 最后组装时，不需要额外加 <div style="height:8px;"></div> 了
+  box.innerHTML = emojiHtml + checkHtml + noteHtml;
+  function bindEmojiEvents() {
+  const emojiRow = document.getElementById('emojiRow');
+// 先把历史选过的表情高亮出来
+const selSet = new Set(selectedEmojis);
+emojiRow.querySelectorAll('.emoji-btn').forEach(btn => {
+  if (btn.classList.contains('add')) return;
+  const i = parseInt(btn.dataset.idx);
+  const val = emojiList[i];
+  if (selSet.has(val)) btn.classList.add('selected');
+});
+  // 不要重复 let shaking...
+
+  emojiRow.querySelectorAll('.emoji-btn').forEach((btn, idx) => {
+    if (btn.classList.contains('add')) return;
+
+    // 普通点击
+   btn.onclick = function (e) {
+  if (shaking) return;
+  const i   = parseInt(this.dataset.idx);
+  const val = emojiList[i];        // 一律用字符进行存储/比较
+
+  // 把当前已选转成“字符数组”，防止历史里混有数字
+  let selVals = (selectedEmojis || [])
+    .map(v => (typeof v === 'number' ? (emojiList[v] || '') : String(v)))
+    .filter(Boolean);
+
+  if (this.classList.contains('selected')) {
+    // 取消选择
+    this.classList.remove('selected');
+    selVals = selVals.filter(v => v !== val);
+  } else {
+    // 已经选过相同的就不重复
+    if (selVals.includes(val)) return;
+
+    if (selVals.length < 2) {
+      this.classList.add('selected');
+      selVals.push(val);
+    } else {
+      // 只保留两个：去掉最早的一个，并取消它的高亮
+      const oldest = selVals.shift();
+      const oldestIdx = emojiList.indexOf(oldest);
+      if (oldestIdx >= 0) {
+        const oldBtn = emojiRow.querySelector(`.emoji-btn[data-idx="${oldestIdx}"]`);
+        if (oldBtn) oldBtn.classList.remove('selected');
+      }
+      this.classList.add('selected');
+      selVals.push(val);
+    }
+  }
+
+  // 回写为“字符数组”
+  selectedEmojis = selVals;
+};
+
+    // 长按抖动+显示删除按钮
+    function triggerShake() {
+      if (shaking) return;
+      shaking = true;
+      emojiRow.querySelectorAll('.emoji-btn').forEach(btn2 => {
+        btn2.classList.add('shake');
+        // 显示删除按钮
+        const delBtn = btn2.querySelector('.emoji-delete-btn');
+        if (delBtn) delBtn.style.display = 'flex';
+      });
+    }
+
+    let longPressTimer = null;
+    btn.onmousedown = function(e) {
+      longPressTimer = setTimeout(triggerShake, 500);
+    };
+    btn.onmouseup = btn.onmouseleave = function(e) {
+      clearTimeout(longPressTimer);
+    };
+    // 【新增移动端支持】
+    btn.ontouchstart = function(e) {
+      longPressTimer = setTimeout(triggerShake, 500);
+    };
+    btn.ontouchend = btn.ontouchcancel = function(e) {
+      clearTimeout(longPressTimer);
+    };
+  });
+
+  // 删除按钮事件
+  emojiRow.querySelectorAll('.emoji-delete-btn').forEach(delBtn => {
+    delBtn.onclick = function(e) {
+      e.stopPropagation();
+      const idx = parseInt(this.dataset.idx);
+      emojiList.splice(idx, 1);
+localStorage.setItem('emojiList', JSON.stringify(emojiList));
+      shaking = false;
+      renderPunchPage(y, m, d);
+    }
+  });
+
+  // 点击空白退出抖动删除
+  document.body.onclick = function(e) {
+    if (shaking && !e.target.classList.contains('emoji-delete-btn')) {
+      shaking = false;
+      emojiRow.querySelectorAll('.emoji-btn').forEach(btn2 => {
+        btn2.classList.remove('shake');
+        const delBtn = btn2.querySelector('.emoji-delete-btn');
+        if (delBtn) delBtn.style.display = 'none';
+      });
+    }
+  };
+  emojiRow.onclick = function(e) { e.stopPropagation(); };
+
+  // 加号按钮
+  const emojiAddBtn = document.getElementById('emojiAddBtn');
+  if (emojiAddBtn) {
+    emojiAddBtn.onclick = function(e){
+  e.stopPropagation();
+  let newEmoji = prompt('请输入你想添加的emoji：');
+  if (newEmoji) {
+    newEmoji = newEmoji.trim();
+    if (!newEmoji) return;
+    if (emojiList.includes(newEmoji)) {
+      alert('这个表情已经在列表里了');
+    } else {
+      emojiList.push(newEmoji);
+localStorage.setItem('emojiList', JSON.stringify(emojiList));
+    }
+    renderPunchPage(y, m, d);
+  }
+};
+  }
+}
+  // check区
+  // check区
+const checkList = document.getElementById('checkList');
+
+function renderCheckGrid() {
+  const act = getActiveItems();
+  checkList.innerHTML = '';
+  act.forEach((item, idxInActive) => {
+    const box = document.createElement('div');
+    box.className = 'check-item';
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const selected = checkedSet.has(idxInActive);
+    btn.className = 'check-btn' + (selected ? ' selected':'');
+    btn.textContent = item.name || ('项目'+(idxInActive+1));
+    btn.onclick = (e) => toggleCheck(idxInActive, Number(item.score||0), box, btn, e);
+
+    box.appendChild(btn);
+    checkList.appendChild(box);
+  });
+  updateScore();
+}
+
+function toggleCheck(idxInActive, score, boxDiv, btn, e) {
+  score = Number(score||0);
+  if (checkedSet.has(idxInActive)) {
+    checkedSet.delete(idxInActive);
+    scoreTotal -= score;
+  } else {
+    checkedSet.add(idxInActive);
+    scoreTotal += score;
+    showPlusAnim(btn, `+${score}`);
+  }
+  btn.classList.toggle('selected');
+  updateScore();
+  btn.blur();
+}
+
+function showPlusAnim(targetBtn, text){
+  let anim = document.createElement('span');
+  anim.className = 'plus-anim';
+  anim.textContent = text;
+  targetBtn.parentElement.appendChild(anim);
+  setTimeout(()=>{ if(anim.parentElement) anim.parentElement.removeChild(anim); }, 830);
+}
+
+function updateScore(){
+  document.getElementById('scoreBar').textContent = scoreTotal;
+}
+  renderCheckGrid();
+  let noteInput = document.getElementById('noteInput');
+  noteInput.oninput = ()=>{ noteText = noteInput.value; };
+
+  document.getElementById('submitBtn').onclick = function(){
+    punchLog[y] = punchLog[y]||{};
+    punchLog[y][m] = punchLog[y][m]||{};
+    punchLog[y][m][d] = {
+      score: scoreTotal,
+      emojis: selectedEmojis,
+      checked: Array.from(checkedSet),
+      note: noteText
+    };
+    localStorage.setItem('isla_punchLog', JSON.stringify(punchLog));
+    let tip = document.getElementById('submitTip');
+    tip.textContent = "🎉";
+    setTimeout(()=>{ tip.textContent=''; }, 2500);
+    // 自动回到日历，刷新抽卡池
+    renderCalendarPage();
+    updatePoolForDate(y, m, d);
+    switchTab('pool', { date: { y: y, m: m, d: d } });
+  };
+  bindEmojiEvents();
+}
+
+/* ========== 奖惩池Tab ========== */
+
+let poolType = 'B', drawn = false, drawnIdx = -1;
+
+function renderCards() {
+  const row = document.getElementById('cardRow');
+  row.innerHTML = ''; 
+  const cardBackUrl = (theme.cardBacks && theme.cardBacks[poolType]) ? theme.cardBacks[poolType] : '';
+  const list = Array.isArray(poolData[poolType]) ? poolData[poolType] : [];
+  if (list.length === 0) {
+    row.innerHTML = '<div style="color:#999;min-height:170px;display:flex;align-items:center;">这个池子还没有卡片哦</div>';
+    document.getElementById('drawBtnContainer').style.display = 'none';
+    return;
+  }
+  const cardBack = document.createElement('div');
+  cardBack.className = 'card-back';
+  cardBack.style.backgroundImage = `url('${cardBackUrl}')`;
+  cardBack.style.cursor = 'default'; 
+  row.appendChild(cardBack);
+  document.getElementById('drawBtnContainer').style.display = 'block';
+  document.getElementById('drawBtn').style.display = 'block';
+}
+
+// 抽卡函数，抽卡次数与【打卡日】绑定
+function drawCard() {
+  // --- 1. 获取【当前正在打卡的日期】作为钥匙 ---
+  // 这次我们用 viewYear, viewMonth, viewDay，也就是你在日历上选中的那一天
+  const punchDateKey = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(viewDay).padStart(2, '0')}`;
+  
+  // --- 2. 加载整个抽卡历史记录 ---
+  // drawHistory 会像这样: {"2025-08-11": {count: 1}, "2025-08-12": {count: 2}}
+  let drawHistory = {};
+  try {
+    drawHistory = JSON.parse(localStorage.getItem('drawHistory')) || {};
+  } catch (e) {
+    drawHistory = {};
+  }
+
+  // --- 3. 检查【当前打卡日】的次数是否已达上限 ---
+  const todayCount = drawHistory[punchDateKey]?.count || 0;
+  if (todayCount >= 2) {
+    alert('不许贪心～');
+    return; // 结束函数，不执行抽卡
+  }
+
+  // --- 4. 执行正常的抽卡逻辑 ---
+  if (drawn) return;
+
+  const cardBack = document.querySelector('#cardRow .card-back');
+  if (!cardBack) return;
+
+  const list = poolData[poolType] || [];
+  if (list.length === 0) return;
+  drawnIdx = Math.floor(Math.random() * list.length);
+  const selectedCard = list[drawnIdx];
+
+  cardBack.classList.add('flipped');
+  drawn = true;
+  document.getElementById('drawBtn').style.display = 'none';
+
+  // --- 5. 抽奖成功后，【当前打卡日】的次数+1，并保存回整个历史记录 ---
+  drawHistory[punchDateKey] = { count: todayCount + 1 };
+  localStorage.setItem('drawHistory', JSON.stringify(drawHistory));
+
+  // --- 6. 翻转卡片并显示结果 (这部分不变) ---
+  setTimeout(() => {
+    cardBack.style.opacity = '0'; 
+    showResultCard(selectedCard);
+  }, 700);
+}
+
+// 【最终版】
+// 请用这个函数完整替换您现有的 showResultCard 函数
+function showResultCard(card) {
+    // 1. 准备舞台：清空旧卡片，显示特效层和结果弹窗
+    document.getElementById('cardRow').innerHTML = '';
+    document.getElementById('fxLayer').style.display = 'block';
+    document.getElementById('rewardPopup').style.display = 'flex';
+
+    // 2. 填充结果卡片的内容和样式
+    const frame = document.getElementById('rewardFrame');
+    frame.className = 'reward-frame'; // 先重置
+    frame.classList.add(`pool-${poolType}`); // 再根据当前池子添加颜色
+    frame.querySelector('#rfTitle').textContent = card.title;
+    frame.querySelector('#rfContent').textContent = card.desc;
+
+    // 3. 读取卡片自己的特效设置，并启动对应的特效
+    const effectType = card.effectType || 'barrage'; // 默认为弹幕
+
+    if (effectType === 'rain') {
+        // 如果是下落特效，调用升级后的 startRain 函数
+        // startRain 函数自己会判断卡片里有没有图片链接
+        startRain(card);
+    } else {
+        // 否则，启动弹幕特效
+        const barrages = card.barrages || [];
+        startBarrage(barrages);
+    }
+}
+
+// 同时替换这个函数
+function resetDraw() {
+  stopEffects();
+  document.getElementById('fxLayer').style.display = 'none';
+  
+  // ✅ 新增：隐藏弹窗
+  document.getElementById('rewardPopup').style.display = 'none';
+
+// 把“已抽奖”的状态重置为“未抽奖”，这样下次才能点
+  drawn = false;
+  renderCards();
+}
+
+// ===== 弹幕 & 小雨：控制器 =====
+let barrageTimer = null;
+let rainTimer = null;
+function stopEffects(){
+  // 停弹幕
+  if (barrageTimer) { clearInterval(barrageTimer); barrageTimer = null; }
+  const fx = document.getElementById('fxLayer');
+  if (fx) fx.innerHTML = '';
+
+  // 停雨
+  if (rainTimer) { clearInterval(rainTimer); rainTimer = null; }
+}
+
+// 启动弹幕 (终极丝滑版，使用递归 setTimeout)
+function startBarrage(lines) { // 直接接收弹幕数组
+    stopEffects();
+    if (!lines || lines.length === 0) return;
+
+  const fx = document.getElementById('fxLayer');
+  if (!fx) return;
+
+  const W = fx.clientWidth;
+
+  // 这是我们的“生成器”
+  const spawnBullet = () => {
+    const el = document.createElement('div');
+    el.className = 'bullet';
+    el.textContent = lines[Math.floor(Math.random() * lines.length)];
+
+    el.style.opacity = '0';
+    fx.appendChild(el);
+
+    const elWidth = el.clientWidth;
+    const maxLeft = W - elWidth;
+    const x = Math.random() * (maxLeft > 0 ? maxLeft : 0);
+    const duration = 9000 + Math.random() * 7000;
+
+    el.style.left = `${x}px`;
+    el.style.animationDuration = `${duration}ms`;
+    el.style.opacity = '1';
+
+    setTimeout(() => { el.remove(); }, duration);
+
+    // --- 关键改动在这里！---
+    // 生成完一条后，随机等待 700ms 到 1500ms，再调用自己去生成下一条
+    const nextSpawnTime = 700 + Math.random() * 800; 
+    barrageTimer = setTimeout(spawnBullet, nextSpawnTime);
+  };
+
+  // 立即开始第一条弹幕的生成
+  spawnBullet(); 
+}
+
+// 启动小雨
+function startRain(card) { // ✅ 现在它接收一整个 card 对象
+    stopEffects();
+    const fx = document.getElementById('fxLayer');
+    if (!fx) return;
+    const W = fx.clientWidth;
+
+    // ✅ 检查卡片数据里是否有自定义的图片链接
+    const useCustomImage = card && card.rainImageUrl;
+
+    const spawnDrop = () => {
+        let el; // 声明一个变量来装我们的下落物
+
+        if (useCustomImage) {
+            // --- 如果有自定义图片链接 ---
+            el = document.createElement('img');
+            el.src = card.rainImageUrl;
+            el.className = 'rain-image'; // 使用为图片设计的专属样式
+        } else {
+            // --- 如果没有，就用默认的CSS雨滴 ---
+            el = document.createElement('div');
+            el.className = 'drop';
+        }
+
+        el.style.left = `${Math.random() * W}px`;
+
+        // 根据是图片还是雨滴，使用不同的动画
+        const duration = 1.5 + Math.random() * 2;
+        const animationName = useCustomImage ? 'rainFallWithFlutter' : 'rainFall';
+        el.style.animation = `${animationName} ${duration}s linear forwards`;
+
+        fx.appendChild(el);
+        setTimeout(() => el.remove(), duration * 1000 + 100);
+    };
+
+    rainTimer = setInterval(() => {
+        // 为了视觉效果，图片一次少下几个，雨滴可以多下几个
+        const spawnCount = useCustomImage ? 2 : 5;
+        for (let i = 0; i < spawnCount; i++) spawnDrop();
+    }, 150); // 频率也稍微降低一点
+}
+/* ========== TabBar控制 ========== */
+const tabBtns = document.querySelectorAll('.tab-btn');
+// ===== Tab 切换（耐打版）=====
+// 【终极版】
+function switchTab(tab, options = {}){ // 增加一个可选的 options 参数
+  if (tab !== 'pool') stopEffects();
+  const validTabs = ['calendar','punch','pool','me'];
+  if (!validTabs.includes(tab)) tab = 'calendar';
+
+  // 视图和按钮高亮 (不变)
+  document.querySelectorAll('.view-page.active').forEach(el=>el.classList.remove('active'));
+  const view = document.getElementById('tab-'+tab);
+  if (view) view.classList.add('active');
+  document.querySelectorAll('.tab-btn.active').forEach(b=>b.classList.remove('active'));
+  const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`)
+           || document.querySelector('.tab-btn[data-tab="calendar"]');
+  if (btn) btn.classList.add('active');
+
+  // 业务刷新
+  if (tab === 'punch') {
+    if (!punchDayViewMode){ viewYear = curYear; viewMonth = curMonth; viewDay = curDay; }
+    renderPunchPage(viewYear, viewMonth, viewDay);
+    punchDayViewMode = false;
+  } else if (tab === 'calendar') {
+    renderCalendarPage();
+  } else if (tab === 'pool') {
+    // --- 核心改动在这里 ---
+    // 如果 options 里带了日期，就用那个日期；否则，用默认的今天
+    if (options.date) {
+      updatePoolForDate(options.date.y, options.date.m, options.date.d);
+    } else {
+      updatePoolForDate(); // 不带参数，默认使用今天的日期
+    }
+  } else if (tab === 'me') {
+    if (typeof renderMeTab === 'function') renderMeTab();
+  }
+}
+
+// ======== 奖池数据结构与渲染 ===========
+function escapeHtml(s){
+  return String(s??'')
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#39;");
+}
+
+poolData = JSON.parse(localStorage.getItem('poolData') || '{}');
+const defaultPools = {
+  'A': [{ title: '示例奖励', desc: '这是一个示例奖励', tips: '' }],
+  'B': [],
+  'P': []
+};
+if(!poolData.A || !poolData.B || !poolData.P){
+  poolData = JSON.parse(JSON.stringify(defaultPools));
+  localStorage.setItem('poolData', JSON.stringify(poolData));
+}
+// ========== 奖池分页（A/B/P）一站式版本 ==========
+
+// 当前激活的池（默认 A）
+let activePool = 'A';
+
+function savePoolData(){
+  localStorage.setItem('poolData', JSON.stringify(poolData));
+}
+
+// 【全新函数2：特效面板折叠/展开】
+// --- 这是新函数 ---
+function toggleEffectPanel(poolType, idx) {
+    const body = document.getElementById(`effect_body_${poolType}_${idx}`);
+    const triangle = document.getElementById(`effect_triangle_${poolType}_${idx}`);
+    if (!body || !triangle) return;
+
+    const isOpen = body.style.display === 'block';
+    body.style.display = isOpen ? 'none' : 'block';
+    triangle.classList.toggle('active', !isOpen);
+}
+
+function renderPoolList() {
+  const container = document.getElementById('poolList');
+  if (!container) return;
+
+  // 使用 activePool 全局变量来决定哪个按钮是激活的
+  container.innerHTML = `
+    <div class="item-settings-panel">
+      <div class="pool-tabs">
+        <button class="pool-tab ${activePool === 'A' ? 'active' : ''}" data-k="A" onclick="switchPool('A')">A池</button>
+        <button class="pool-tab ${activePool === 'B' ? 'active' : ''}" data-k="B" onclick="switchPool('B')">B池</button>
+        <button class="pool-tab ${activePool === 'P' ? 'active' : ''}" data-k="P" onclick="switchPool('P')">P池</button>
+      </div>
+      
+      <div class="pool-block">
+        <div id="poolTitle" class="pool-title">${activePool}池</div>
+        <div id="poolCards_active">
+          <!-- 卡片内容将由 renderActivePool 动态渲染到这里 -->
+        </div>
+      </div>
+      
+      <div class="bottom-row" style="margin-top:10px;">
+         <button class="add-btn" onclick="addPoolCardRow(activePool)">+ 新增奖项到 ${activePool} 池</button>
+      </div>
+    </div>
+  `;
+  
+  // 确保UI和数据同步
+  updatePoolTabsUI();
+  renderActivePool(); 
+}
+
+/** 切换当前池 */
+/** 切换当前池 */
+function switchPool(k){
+  if (!['A','B','P'].includes(k)) return;
+  activePool = k;
+  renderPoolList(); // <-- 直接调用这个函数，它会负责搞定一切！
+}
+
+/** 更新 tabs 的选中态 */
+function updatePoolTabsUI(){
+  document.querySelectorAll('#poolList .pool-tab').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.k === activePool);
+  });
+}
+
+/** 渲染当前池标题与内容到统一容器 */
+function renderActivePool(){
+  const titleEl = document.getElementById('poolTitle');
+  if (titleEl) titleEl.textContent = `${activePool}池`;
+  renderPoolCards(activePool, 'poolCards_active');
+}
+
+/**
+ * 渲染某个池到指定容器
+ * @param {'A'|'B'|'P'} poolType
+ * @param {string} targetId 目标容器 id（可选；不传则用旧命名 poolCards_X）
+ */
+// 【升级版】
+function renderPoolCards(poolType, targetId) {
+    const cards = poolData[poolType] || [];
+    const cont = document.getElementById(targetId || `poolCards_${poolType}`);
+    if (!cont) return;
+
+    let html = '';
+    cards.forEach((card, idx) => {
+        // 为模板准备好所有需要的数据
+        const effectType = card.effectType || 'barrage';
+        const barrages = (card.barrages || []).join('\n');
+        // 获取卡片保存的图片链接，如果没有则为空字符串
+        const rainImageUrl = card.rainImageUrl || '';
+
+        html += `
+            <div class="pool-card-row">
+                <!-- 卡片标题、描述、删除按钮 (这部分不变) -->
+                <div class="card-title-row">
+                    <div class="ed-title" contenteditable="true" oninput="editCardField('${poolType}',${idx},'title',this.innerText)">${escapeHtml(card.title)}</div>
+                    <button class="del-btn" onclick="deletePoolCard('${poolType}',${idx})">🗑️</button>
+                </div>
+                <div class="ed-line" contenteditable="true" oninput="editCardField('${poolType}',${idx},'desc',this.innerText)">${escapeHtml(card.desc)}</div>
+                <div class="ed-line" contenteditable="true" oninput="editCardField('${poolType}',${idx},'tips',this.innerText)">${escapeHtml(card.tips)}</div>
+
+                <!-- 特效设置区域 -->
+                <div style="background: rgba(120,120,120,0.05); border-radius: 8px; padding: 10px; margin-top: 12px; text-align: left;">
+                    
+                    <!-- 可点击的标题行，带小三角 -->
+    <div style="font-size: 14px; ..." onclick="toggleEffectPanel('${poolType}', ${idx})">
+        特效设置
+        <span id="effect_triangle_${poolType}_${idx}" class="chevron-arrow"></span>
+    </div>
+                    
+                    <!-- 默认隐藏的特效内容区 -->
+                    <div id="effect_body_${poolType}_${idx}" style="display: none;">
+                        <!-- 特效类型单选按钮 (弹幕 vs 下落) -->
+                        <div style="display: flex; gap: 15px; margin: 8px 0;">
+                            <label><input type="radio" name="effect_${poolType}_${idx}" value="barrage" ${effectType === 'barrage' ? 'checked' : ''} onchange="editCardField('${poolType}',${idx},'effectType',this.value)"> 弹幕</label>
+                            <label><input type="radio" name="effect_${poolType}_${idx}" value="rain" ${effectType === 'rain' ? 'checked' : ''} onchange="editCardField('${poolType}',${idx},'effectType',this.value)"> 下落</label>
+                        </div>
+
+                        <!-- 特效具体内容设置 -->
+                        <div id="effect_content_${poolType}_${idx}">
+                            ${ effectType === 'barrage'
+                              ? `<!-- 如果是弹幕，显示多行文本框 -->
+                                <textarea class="note-textarea" style="min-height: 80px; margin-bottom: 0;" placeholder="一行一条弹幕" oninput="editCardBarrages('${poolType}', ${idx}, this.value)">${escapeHtml(barrages)}</textarea>`
+                              : `<!-- 如果是下落，显示图片链接输入框 -->
+                                <input type="text" class="th-input" style="width: 100%;" 
+                                       placeholder="粘贴图片链接 (可为空，默认为雨滴)" 
+                                       value="${escapeHtml(rainImageUrl)}" 
+                                       oninput="editCardField('${poolType}',${idx},'rainImageUrl',this.value)">`
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="row-divider"></div>
+            </div>
+        `;
+    });
+    cont.innerHTML = html;
+}
+
+// —— 直接编辑即保存 —— //
+// 请用这个函数完整替换您现有的 editCardField 函数
+function editCardField(poolType, idx, field, value) {
+    if (!poolData[poolType] || !poolData[poolType][idx]) return;
+
+    poolData[poolType][idx][field] = value;
+    savePoolData();
+    
+    // 关键：如果修改的是特效类型，立即刷新UI，以便显示正确的输入框
+    if (field === 'effectType') {
+        renderActivePool();
+    }
+}
+
+// 【全新】专门处理弹幕（因为它需要按行分割）
+function editCardBarrages(poolType, idx, text) {
+    if (!poolData[poolType] || !poolData[poolType][idx]) return;
+    const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+    poolData[poolType][idx].barrages = lines;
+    savePoolData();
+}
+
+// 【全新】删除卡片时也要确保数据干净
+function deletePoolCard(poolType, idx) {
+    if(!confirm('确定删除该奖项？')) return;
+    poolData[poolType].splice(idx, 1);
+    savePoolData();
+    renderActivePool();
+}
+
+function addPoolCardRow(poolType){
+  if (!poolData[poolType]) {
+    poolData[poolType] = [];
+  }
+  // 添加一张带默认特效设置的空卡片
+  poolData[poolType].push({
+    title: '新奖项', 
+    desc: '在这里填写描述', 
+    tips: '在这里填写提示',
+    effectType: 'barrage', // 默认是弹幕
+    rainContent: '❤️',    // 默认下爱心
+    barrages: []          // 弹幕列表为空
+  });
+  savePoolData();
+  renderActivePool();
+}
+// ========== 通用折叠/展开机制 ==========
+function togglePanel(panelId) {
+  const panel = document.getElementById(panelId);
+  const body = panel.querySelector('.setting-panel-body');
+  const isOpen = body.style.display === 'block';
+  if(isOpen){
+    body.style.display = 'none';
+    panel.classList.remove('active');
+  }else{
+    // 先全部关掉
+    document.querySelectorAll('.setting-panel').forEach(p=>{
+      if(p!==panel){
+        p.classList.remove('active');
+        const b = p.querySelector('.setting-panel-body');
+        if(b) b.style.display = 'none';
+      }
+    });
+    body.style.display = 'block';
+    panel.classList.add('active');
+    // 展开时渲染内容
+    if(panelId==='poolPanel') renderPoolList();
+    if(panelId==='meSettingsPanel') renderItemSettings();
+  }
+}
+
+// ===== 单主题，不分日夜 =====
+theme = JSON.parse(localStorage.getItem('theme') || 'null') || {
+  A: { calendar:'rgba(244,179,194,0.27)', dot:'#f4b3c2' },
+  B: { calendar:'rgba(227,235,152,0.27)', dot:'#e3eb98' },
+  P: { calendar:'rgba(92,179,204,0.16)',  dot:'#5cb3cc' },
+  cardBacks: {
+    A: '',
+    B: '',
+    P: ''
+  },
+  base:{ bg:'#ffffff', fg:'#222222', panel:'#fafbfc', border:'#eeeeee' },
+  check:{ border:'#ff9900', bg:'#ffffff', text:'#ff7700' }
+};
+
+function setCssVar(k,v){ document.documentElement.style.setProperty(k,v); }
+
+function applyTheme(){
+  if (!theme) return; // 增加一个安全检查
+  // A/B/P 颜色设置
+  if (theme.A) {
+    setCssVar('--A-cal-bg', theme.A.calendar);
+    setCssVar('--A-dot', theme.A.dot);
+  }
+  if (theme.B) {
+    setCssVar('--B-cal-bg', theme.B.calendar);
+    setCssVar('--B-dot', theme.B.dot);
+  }
+  if (theme.P) {
+    setCssVar('--P-cal-bg', theme.P.calendar);
+    setCssVar('--P-dot', theme.P.dot);
+  }
+  // 基础颜色
+  if (theme.base) {
+    setCssVar('--app-bg', theme.base.bg);
+    setCssVar('--app-fg', theme.base.fg);
+    setCssVar('--panel-bg', theme.base.panel);
+    setCssVar('--panel-border', theme.base.border);
+  }
+  // 打卡选中态
+  if (theme.check) {
+    setCssVar('--check-selected-border', theme.check.border);
+    setCssVar('--check-selected-bg', theme.check.bg);
+    setCssVar('--check-selected-fg', theme.check.text);
+  }
+}
+
+// rgba -> #rrggbb（给 <input type="color"> 用）
+function toColorInput(v){
+  try{
+    if(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) return v;
+    const m = v.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if(m){
+      const r = (+m[1]).toString(16).padStart(2,'0');
+      const g = (+m[2]).toString(16).padStart(2,'0');
+      const b = (+m[3]).toString(16).padStart(2,'0');
+      return '#'+r+g+b;
+    }
+  }catch(e){}
+  return '#000000';
+}
+
+// —— 颜色面板：一张大卡，同行「名称 + 色盘 + 色号」 —— //
+function renderColorList(){
+  const cont = document.getElementById('colorList'); if(!cont) return;
+  const colorRows = [
+    ['A池：月历格子底色',['A','calendar']], ['A池：年历点点',['A','dot']],
+    ['B池：月历格子底色',['B','calendar']], ['B池：年历点点',['B','dot']],
+    ['P池：月历格子底色',['P','calendar']], ['P池：年历点点',['P','dot']],
+    ['打卡页选中：边框',['check','border']], ['打卡页选中：背景',['check','bg']], ['打卡页选中：文字',['check','text']]
+  ];
+  const imageRows = [
+      ['A池卡背图片', ['cardBacks', 'A']],
+      ['B池卡背图片', ['cardBacks', 'B']],
+      ['P池卡背图片', ['cardBacks', 'P']]
+  ];
+  const makeColorRow = (label, path) => {
+    const v = path.reduce((o, k) => (o && o[k] !== undefined) ? o[k] : '', theme);
+    const id = path.join('_');
+    return `<div class="color-row">
+        <div class="label">${label}</div>
+        <div class="inputs">
+          <input type="color" value="${toColorInput(v)}" onchange="onColorPick2('${id}',this.value)">
+          <input type="text" value="${String(v).replace(/"/g,'&quot;')}" oninput="onColorHex2('${id}',this.value)">
+        </div>
+      </div>`;
+  };
+  const makeImageRow = (label, path) => {
+    const v = path.reduce((o, k) => (o && o[k] !== undefined) ? o[k] : '', theme);
+    const id = path.join('_');
+    return `<div class="color-row">
+        <div class="label">${label}</div>
+        <div class="inputs">
+          <input type="text" style="width: 100%;" placeholder="粘贴图片链接" value="${escapeHtml(v)}" oninput="onColorHex2('${id}',this.value)">
+        </div>
+      </div>`;
+  };
+  cont.innerHTML = `
+    <div class="color-wrap">
+      ${colorRows.map(r=>makeColorRow(r[0], r[1])).join('')}
+    </div>
+    <div class="color-wrap" style="margin-top: 16px;">
+      ${imageRows.map(r=>makeImageRow(r[0], r[1])).join('')}
+    </div>
+  `;
+}
+
+function onColorPick2(idPath, value){ setThemeValueById2(idPath, value); }
+function onColorHex2(idPath, value){ setThemeValueById2(idPath, value); }
+// ✅ 替换为您代码中现有的 setThemeValueById2 函数
+function setThemeValueById2(idPath, val) {
+    const ks = idPath.split('_');
+    let current = theme;
+
+    // 遍历路径，如果中间的对象不存在，就创建它
+    for (let i = 0; i < ks.length - 1; i++) {
+        const key = ks[i];
+        if (!current[key] || typeof current[key] !== 'object') {
+            current[key] = {}; 
+        }
+        current = current[key];
+    }
+
+    // 在最终的位置设置值
+    current[ks[ks.length - 1]] = val;
+    
+    // 保存并应用
+    localStorage.setItem('theme', JSON.stringify(theme));
+    applyTheme();
+}
+
+// —— 单主题下的“恢复默认” —— //
+function resetThemeToDefault(){
+  theme = {
+    A: { calendar:'rgba(244,179,194,0.27)', dot:'#f4b3c2' },
+    B: { calendar:'rgba(227,235,152,0.27)', dot:'#e3eb98' },
+    P: { calendar:'rgba(92,179,204,0.16)',  dot:'#5cb3cc' },
+    cardBacks: {
+      A: '',
+    B: '',
+    P: ''
+    },
+    base:{ bg:'#ffffff', fg:'#222222', panel:'#fafbfc', border:'#eeeeee' },
+    check:{ border:'#ff9900', bg:'#ffffff', text:'#ff7700' }
+  };
+  localStorage.setItem('theme', JSON.stringify(theme));
+  renderColorList();
+  applyTheme();
+}
+
+/* ========= 奖池阈值（替换硬编码 48 / 34） ========= */
+// ===== 统一的分数→池子判定 + 年历点点颜色映射 =====
+function getPoolByScore(score){
+  if(score >= (poolThresholds?.A ?? 48)) return 'A';
+  if(score >= (poolThresholds?.B ?? 34)) return 'B';
+  return 'P';
+}
+function getYearDotClassByPool(pool){
+  // 年历里 A=粉、B=绿、P=蓝
+  return pool === 'A' ? 'day-dot filled pink'
+       : pool === 'B' ? 'day-dot filled green'
+       : 'day-dot filled blue';
+}
+poolThresholds = JSON.parse(localStorage.getItem('poolThresholds')||'null') || { A:48, B:34 };
+function saveThresholds(){
+  const a = +document.getElementById('thA').value || 0;
+  const b = +document.getElementById('thB').value || 0;
+  poolThresholds = {A:a, B:b};
+  localStorage.setItem('poolThresholds', JSON.stringify(poolThresholds));
+}
+function loadThresholdInputs(){
+  const ta = document.getElementById('thA'), tb = document.getElementById('thB');
+  if(ta) ta.value = poolThresholds.A;
+  if(tb) tb.value = poolThresholds.B;
+}
+
+/* 覆盖你的 updatePoolByTodayScore，使其使用阈值 */
+// --- 这是全新的、更智能的函数 ---
+function updatePoolForDate(y, m, d) {
+  // 如果没有指定日期，就默认使用现实中的今天
+  const year = y || curYear;
+  const month = m || curMonth;
+  const day = d || curDay;
+  
+  // 获取指定日期的分数
+  const score = punchLog[year]?.[month]?.[day]?.score || 0;
+
+  // 根据分数决定卡池类型
+  if (score >= (poolThresholds?.A ?? 48))      poolType = 'A';
+  else if (score >= (poolThresholds?.B ?? 34)) poolType = 'B';
+  else                                         poolType = 'P';
+
+  // 重新渲染卡片，以显示正确的卡池
+  renderCards();
+}
+/* ========= 导入 / 导出（带密码校验） ========= */
+ioPasswordHash = localStorage.getItem('ioPasswordHash') || '';
+
+async function hashText(t){
+  const enc = new TextEncoder().encode(t);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function setIoPassword(){
+  const pwd = document.getElementById('pwdInput').value;
+  if(!pwd){ alert('请输入密码'); return; }
+  ioPasswordHash = await hashText(pwd);
+  localStorage.setItem('ioPasswordHash', ioPasswordHash);
+  alert('密码已保存');
+  document.getElementById('pwdInput').value='';
+}
+async function checkPasswordPopup(){
+  // 弹窗输入，校验hash
+  const pwd = prompt('请输入导入/导出的密码：');
+  if(!pwd) return false;
+  const h = await hashText(pwd);
+  return (h === (localStorage.getItem('ioPasswordHash')||''));
+}
+function collectAllData() {
+    // 直接从 localStorage 读取所有数据来打包，确保100%准确
+    return {
+        punchLog:       JSON.parse(localStorage.getItem('isla_punchLog') || '{}'),
+        punchItems:     JSON.parse(localStorage.getItem('punchItems') || '[]'),
+        visibleItems:   JSON.parse(localStorage.getItem('visibleItems') || '[]'),
+        poolData:       JSON.parse(localStorage.getItem('poolData') || '{}'),
+        poolThresholds: JSON.parse(localStorage.getItem('poolThresholds') || '{}'),
+        theme:          JSON.parse(localStorage.getItem('theme') || 'null'),
+        emojiList: JSON.parse(localStorage.getItem('emojiList') || '[]'),
+        ioPasswordHash: localStorage.getItem('ioPasswordHash') || '',
+        drawHistory:    JSON.parse(localStorage.getItem('drawHistory') || '{}')
+    };
+}
+async function exportAll(){
+  if (ioPasswordHash) {
+    const ok = await checkPasswordPopup();
+    if (!ok){ alert('密码错误'); return; }
+  }
+
+  const data = collectAllData();
+  const json = JSON.stringify(data, null, 2);
+
+  // ① 尝试新 API（Safari 16.4+、桌面 Chrome/Edge 等支持）
+  try {
+    if (window.showSaveFilePicker) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'isla-health-export.json',
+        types: [{ description: 'JSON 文件', accept: {'application/json': ['.json']} }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(new Blob([json], {type:'application/json'}));
+      await writable.close();
+      alert('已导出到文件。');
+      return;
+    }
+  } catch(e) {
+    // 忽略错误，继续走下一套
+  }
+
+  // ② 常规 Blob + a.click（部分 iOS WebView 仍可能被拦）
+  try {
+    const blob = new Blob([json], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'isla-health-export.json';
+    a.target = '_blank';          // iOS 有时需要新窗口
+    a.rel = 'noopener';
+    document.body.appendChild(a); // 必须插入 DOM
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 1500);
+    return;
+  } catch(e) {
+    // 继续回退
+  }
+
+  // ③ 终极回退：打开新页显示 JSON，手动“分享/保存到文件”
+  try {
+    const dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+    window.open(dataUrl, '_blank');
+    alert('已在新页面打开数据，请使用“分享/保存到文件”。');
+  } catch(e) {
+    alert('导出失败，可尝试点击“复制数据”后自行粘贴到备忘录保存。');
+  }
+}
+
+// 兜底：复制到剪贴板
+async function copyAll(){
+  const json = JSON.stringify(collectAllData(), null, 2);
+  try{
+    await navigator.clipboard.writeText(json);
+    alert('已复制到剪贴板！');
+  }catch(e){
+    // 某些 iOS 需用户操作环境；再来个旧式 textarea 回退
+    const ta = document.createElement('textarea');
+    ta.value = json;
+    document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert('已复制到剪贴板！');
+  }
+}
+// 【最终完美版】清除所有数据
+function clearAllData() {
+  const message = '确定要清空所有数据吗？\n这将删除包含以下内容的所有信息：\n• 打卡记录\n• 打卡项目\n• 抽卡历史\n• 奖池内容 (含弹幕/特效)\n• 自定义主题/颜色\n• Emoji列表\n• 导入/导出密码\n\n此操作不可撤销，建议先导出备份！';
+  if (confirm(message)) {
+    // 使用更安全的方式，逐一清空，而不是 localStorage.clear()
+    localStorage.setItem('isla_punchLog', '{}');
+    localStorage.setItem('punchItems', '[]');
+    localStorage.setItem('visibleItems', '[]');
+    localStorage.setItem('poolData', '{}');
+    localStorage.setItem('poolThresholds', '{}');
+    localStorage.setItem('theme', '{}');
+    localStorage.setItem('emojiList', '[]');
+    localStorage.setItem('ioPasswordHash', '');
+    localStorage.setItem('drawHistory', '{}'); // <-- 确保也清空了抽卡历史
+
+    alert('数据已清空！页面即将刷新。');
+    setTimeout(() => { location.reload(); }, 800);
+  }
+}
+// 导入
+// 【最终完美版】
+async function importFromClipboard() {
+    if (localStorage.getItem('ioPasswordHash')){
+       const pwd = prompt('请输入导入/导出的密码：');
+        if(!pwd) return;
+        const h = await hashText(pwd);
+        if (h !== localStorage.getItem('ioPasswordHash')) {
+            alert('密码错误');
+            return;
+        }
+    }
+    let txt = '';
+    try { txt = await navigator.clipboard.readText(); } catch(e) { txt = prompt('请粘贴导出的 JSON 文本：'); }
+    if (!txt) return;
+    let obj;
+    try { obj = JSON.parse(txt); } catch(e) { alert('粘贴内容不是有效的 JSON'); return; }
+
+    // 同样，将所有数据写入 localStorage
+    if (obj.punchLog) localStorage.setItem('isla_punchLog', JSON.stringify(obj.punchLog));
+    if (obj.punchItems) localStorage.setItem('punchItems', JSON.stringify(obj.punchItems));
+    if (obj.visibleItems) localStorage.setItem('visibleItems', JSON.stringify(obj.visibleItems));
+    if (obj.poolData) localStorage.setItem('poolData', JSON.stringify(obj.poolData));
+    if (obj.poolThresholds) localStorage.setItem('poolThresholds', JSON.stringify(obj.poolThresholds));
+    if (obj.theme) localStorage.setItem('theme', JSON.stringify(obj.theme));
+    if (obj.drawHistory) localStorage.setItem('drawHistory', JSON.stringify(obj.drawHistory));
+    if (obj.ioPasswordHash) localStorage.setItem('ioPasswordHash', obj.ioPasswordHash);
+
+    // --- 这是新的、正确的代码 ---
+if (obj.emojiList && Array.isArray(obj.emojiList)) {
+    localStorage.setItem('emojiList', JSON.stringify(obj.emojiList));
+}
+    
+    // 强制刷新页面
+    alert('导入完成！页面即将刷新以应用所有更改。');
+    setTimeout(() => { location.reload(); }, 800);
+}
+
+// 【最终完美版】
+async function importAll() {
+    if (localStorage.getItem('ioPasswordHash')){
+        const pwd = prompt('请输入导入/导出的密码：');
+        if(!pwd) return;
+        const h = await hashText(pwd);
+        if (h !== localStorage.getItem('ioPasswordHash')) {
+            alert('密码错误');
+            return;
+        }
+    }
+    const f = document.getElementById('importFile').files[0];
+    if (!f) { alert('请选择文件'); return; }
+    const txt = await f.text();
+    let obj;
+    try { obj = JSON.parse(txt); } catch(e) { alert('文件格式不正确'); return; }
+
+    // 将备份文件中的所有数据，逐一写入 localStorage
+    if (obj.punchLog) localStorage.setItem('isla_punchLog', JSON.stringify(obj.punchLog));
+    if (obj.punchItems) localStorage.setItem('punchItems', JSON.stringify(obj.punchItems));
+    if (obj.visibleItems) localStorage.setItem('visibleItems', JSON.stringify(obj.visibleItems));
+    if (obj.poolData) localStorage.setItem('poolData', JSON.stringify(obj.poolData));
+    if (obj.poolThresholds) localStorage.setItem('poolThresholds', JSON.stringify(obj.poolThresholds));
+    if (obj.theme) localStorage.setItem('theme', JSON.stringify(obj.theme));
+    if (obj.drawHistory) localStorage.setItem('drawHistory', JSON.stringify(obj.drawHistory));
+    if (obj.ioPasswordHash) localStorage.setItem('ioPasswordHash', obj.ioPasswordHash);
+    
+    // --- 这是新的、正确的代码 ---
+if (obj.emojiList && Array.isArray(obj.emojiList)) {
+    localStorage.setItem('emojiList', JSON.stringify(obj.emojiList));
+}
+    
+    // 强制刷新页面，从硬盘重新加载所有数据
+    alert('导入完成！页面即将刷新以应用所有更改。');
+    setTimeout(() => { location.reload(); }, 800);
+}
+
+// 【全新】一个用于刷新所有UI的辅助函数
+function renderAllTabs() {
+    loadThresholdInputs();
+    renderItemSettings();
+    renderPoolList();
+    applyTheme();
+    renderCalendarPage();
+}
+
+// ===== 页面初始化（唯一）=====
+document.addEventListener('DOMContentLoaded', function () {
+  // 绑定 TabBar 点击
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchTab(btn.dataset.tab));
+});
+
+  // 主题 / 色彩 / 阈值初始化
+  try{
+    applyTheme();
+	  renderColorList();
+    loadThresholdInputs();
+
+    // 检查主题数据是否存在，并且缺少 cardBacks 属性
+    if (theme && !theme.cardBacks) {
+        console.log("检测到旧版本主题数据，正在执行一次性迁移...");
+        // 为旧数据添加默认的卡背链接
+        theme.cardBacks = {
+            A: '',
+    			B: '',
+    			P: ''
+        };
+        // 将修复后的数据存回本地
+        localStorage.setItem('theme', JSON.stringify(theme));
+        // 重新渲染色彩列表，让新的输入框显示出来
+        renderColorList(); 
+    }
+  } catch(e) {
+      console.error("Error during theme initialization:", e);
+  }
+
+  // === 用一个新的 try...catch 包裹这里的逻辑 ===
+  try {
+    const actOnce = getActiveItems();
+    if(!Array.isArray(visibleItems) || visibleItems.length > actOnce.length){
+      visibleItems = actOnce.map((_,i)=>i);
+      localStorage.setItem('visibleItems', JSON.stringify(visibleItems));
+    }
+  } catch(e) {
+      console.error("Error during visible items check:", e);
+  }
+
+  // “我”Tab里用到的渲染先准备一下（可选）
+  if (typeof renderItemSettings === 'function') renderItemSettings();
+  if (typeof renderPoolList === 'function') renderPoolList();
+
+  // 默认进入日历
+  switchTab('calendar');
+});
+
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').then(registration => {
+        console.log('SW registered: ', registration);
+      }).catch(registrationError => {
+        console.log('SW registration failed: ', registrationError);
+      });
+    });
+  }
+</script>
+</body>
+</html>
